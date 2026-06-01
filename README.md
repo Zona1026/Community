@@ -99,6 +99,7 @@ AI 用來協助使用者理解趨勢與發想內容方向：
 - `docs/後端架構.md`
 - `docs/資料庫設計.md`
 - `docs/開發路線圖.md`
+- `docs/使用說明.md`
 - `frontend/README.md`
 
 ## 前端主流程
