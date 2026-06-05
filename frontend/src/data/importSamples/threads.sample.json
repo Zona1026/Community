@@ -1,0 +1,30 @@
+[
+  {
+    "id": "threads-campus-ai-notes",
+    "platform": "Threads",
+    "title": "學生開始用 AI 整理課堂筆記",
+    "content": "不少學生分享用 AI 把上課錄音整理成重點與待辦，討論重點是效率提升，但也有人擔心過度依賴。",
+    "url": "https://example.com/threads/campus-ai-notes",
+    "likeCount": 1850,
+    "commentCount": 260,
+    "hotTags": ["最多人討論", "教育科技"],
+    "createdAt": "2026-06-01T10:15:00+08:00",
+    "importedAt": "2026-06-02T09:00:00+08:00",
+    "industryTags": ["教育業", "科技業"],
+    "keywords": ["AI", "筆記", "學生", "學習效率"]
+  },
+  {
+    "id": "threads-coffee-price",
+    "platform": "Threads",
+    "title": "外帶咖啡漲價引發通勤族討論",
+    "content": "通勤族討論每天一杯咖啡的支出變高，也有人開始比較便利商店、連鎖咖啡與自備咖啡的差異。",
+    "url": "https://example.com/threads/coffee-price",
+    "likeCount": 1420,
+    "commentCount": 390,
+    "hotTags": ["留言數最多", "生活消費"],
+    "createdAt": "2026-06-01T08:30:00+08:00",
+    "importedAt": "2026-06-02T09:00:00+08:00",
+    "industryTags": ["餐飲業", "零售業"],
+    "keywords": ["咖啡", "通勤", "漲價", "消費"]
+  }
+]

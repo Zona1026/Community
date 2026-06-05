@@ -22,7 +22,7 @@ export function createTrendSignals(clusters: TopicCluster[]): TrendSignal[] {
       topicName: cluster.name,
       score,
       momentum: getMomentum(score),
-      topics: cluster.items.map((item) => item.title),
+      topics: cluster.items.map((item) => item.topicTitle),
     };
   });
 }

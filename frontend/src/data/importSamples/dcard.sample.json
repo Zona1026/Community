@@ -1,0 +1,32 @@
+{
+  "items": [
+    {
+      "id": "dcard-rent-checklist",
+      "platform": "Dcard",
+      "title": "第一次租屋最容易忽略的檢查項目",
+      "content": "網友整理看房時要檢查水壓、隔音、插座位置與垃圾處理方式，留言區補充很多實際踩雷經驗。",
+      "url": "https://example.com/dcard/rent-checklist",
+      "likeCount": 2360,
+      "commentCount": 510,
+      "hotTags": ["最多人討論", "實用清單"],
+      "createdAt": "2026-06-01T21:20:00+08:00",
+      "importedAt": "2026-06-02T09:00:00+08:00",
+      "industryTags": ["房地產", "居家生活"],
+      "keywords": ["租屋", "看房", "檢查清單", "居住"]
+    },
+    {
+      "id": "dcard-sunscreen-test",
+      "platform": "Dcard",
+      "title": "夏天防曬產品實測心得",
+      "content": "美妝版討論不同防曬在悶熱天氣下的清爽度、泛白程度與補擦方便性，許多人分享自己的膚質經驗。",
+      "url": "https://example.com/dcard/sunscreen-test",
+      "likeCount": 1980,
+      "commentCount": 340,
+      "hotTags": ["按讚數最高", "美妝保養"],
+      "createdAt": "2026-06-01T14:45:00+08:00",
+      "importedAt": "2026-06-02T09:00:00+08:00",
+      "industryTags": ["美妝保養", "零售業"],
+      "keywords": ["防曬", "夏天", "保養", "實測"]
+    }
+  ]
+}

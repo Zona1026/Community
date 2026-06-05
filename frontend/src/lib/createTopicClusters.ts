@@ -5,8 +5,8 @@ export function createTopicClusters(items: NormalizedContent[]): TopicCluster[] 
   const clustersByPlatform = new Map<string, NormalizedContent[]>();
 
   items.forEach((item) => {
-    const currentItems = clustersByPlatform.get(item.platform) ?? [];
-    clustersByPlatform.set(item.platform, [...currentItems, item]);
+    const currentItems = clustersByPlatform.get(item.sourcePlatform) ?? [];
+    clustersByPlatform.set(item.sourcePlatform, [...currentItems, item]);
   });
 
   return Array.from(clustersByPlatform.entries()).map(([platform, clusterItems]) => ({

@@ -21,6 +21,7 @@ export default async function HomePage() {
     : redditPosts.map(redditPostToContentItem);
   const normalizedContent = normalizeContent(contentItems);
   const redditContent = isRedditEnabled ? normalizedContent : [];
+  const displayContent = isRedditEnabled ? redditContent : normalizedContent;
   const topicClusters = createTopicClusters(normalizedContent);
   const trendSignals = createTrendSignals(topicClusters);
   const trendReports = createTrendReports(trendSignals);
@@ -43,9 +44,9 @@ export default async function HomePage() {
             <h2>Reddit 熱門討論</h2>
           </div>
 
-          {isRedditEnabled && redditContent.length > 0 ? (
+          {displayContent.length > 0 ? (
             <div className="content-list">
-              {redditResult?.isFallback ? (
+              {isRedditEnabled && redditResult?.isFallback ? (
                 <article className="content-card">
                   <div className="content-card__source">Reddit 連線狀態</div>
                   <h2>Reddit 資料暫時無法取得</h2>
@@ -56,7 +57,7 @@ export default async function HomePage() {
                 </article>
               ) : null}
 
-              {redditContent.map((item) => (
+              {displayContent.map((item) => (
                 <ContentCard key={item.id} item={item} />
               ))}
             </div>
