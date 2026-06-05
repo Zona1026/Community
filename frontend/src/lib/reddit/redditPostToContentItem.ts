@@ -2,7 +2,7 @@ import type { ContentItem } from '../../types/content';
 import type { RedditPost } from './fetchRedditPosts';
 
 function createFallbackContent(post: RedditPost): string {
-  return `這篇 Reddit 討論目前有 ${post.score} 分、${post.num_comments} 則留言。原文：https://www.reddit.com${post.permalink}`;
+  return `This Reddit discussion has ${post.score} score and ${post.num_comments} comments. Original post: https://www.reddit.com${post.permalink}`;
 }
 
 export function redditPostToContentItem(post: RedditPost): ContentItem {
@@ -19,7 +19,7 @@ export function redditPostToContentItem(post: RedditPost): ContentItem {
     hotTags: ['Reddit 熱門討論'],
     createdAt: new Date().toISOString(),
     importedAt: new Date().toISOString(),
-    industryTags: ['科技業'],
+    industryTags: ['科技業', 'AI 社群'],
     keywords: ['AI', 'Reddit', post.subreddit],
   };
 }

@@ -28,12 +28,12 @@ interface RedditListingResponse {
 const REDDIT_SUBREDDIT = 'artificial';
 const REDDIT_HOT_URL = `https://www.reddit.com/r/${REDDIT_SUBREDDIT}/hot.json?limit=10`;
 
-const fallbackRedditPosts: RedditPost[] = [
+export const fallbackRedditPosts: RedditPost[] = [
   {
     id: 'fallback-ai-agents',
     title: 'AI agents are becoming more common in daily workflows',
     selftext:
-      'People are discussing how AI agents can help summarize research, plan tasks, and automate repetitive work.',
+      'People are discussing how AI agents can summarize research, plan tasks, and automate repetitive work.',
     subreddit: 'artificial',
     permalink: '/r/artificial/comments/fallback_ai_agents/',
     score: 128,
@@ -61,13 +61,32 @@ const fallbackRedditPosts: RedditPost[] = [
   },
 ];
 
+function shouldUseLiveReddit(): boolean {
+  return process.env.USE_REDDIT_LIVE === 'true';
+}
+
+function createFallbackResult(errorMessage?: string): RedditFetchResult {
+  return {
+    posts: fallbackRedditPosts,
+    subreddit: REDDIT_SUBREDDIT,
+    isFallback: true,
+    errorMessage:
+      errorMessage ??
+      'Reddit live fetch is disabled for Demo stability. Using fixed fallback data.',
+  };
+}
+
 export async function fetchRedditPostsWithStatus(): Promise<RedditFetchResult> {
+  if (!shouldUseLiveReddit()) {
+    return createFallbackResult();
+  }
+
   try {
     const response = await fetch(REDDIT_HOT_URL, {
       headers: {
         Accept: 'application/json',
         'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125 Safari/537.36',
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) TrendRadarDemo/1.0',
       },
       next: {
         revalidate: 300,
@@ -75,28 +94,31 @@ export async function fetchRedditPostsWithStatus(): Promise<RedditFetchResult> {
     });
 
     if (!response.ok) {
-      return {
-        posts: fallbackRedditPosts,
-        subreddit: REDDIT_SUBREDDIT,
-        isFallback: true,
-        errorMessage: `Reddit 公開 JSON 目前回傳 ${response.status}，暫時使用備援展示資料。`,
-      };
+      return createFallbackResult(
+        `Reddit public JSON returned ${response.status}. Using fallback data.`,
+      );
     }
 
     const data = (await response.json()) as RedditListingResponse;
+    const posts = data.data.children
+      .map((child) => child.data)
+      .filter((post) => post.id && post.title);
+
+    if (posts.length === 0) {
+      return createFallbackResult(
+        'Reddit public JSON returned no usable posts. Using fallback data.',
+      );
+    }
 
     return {
-      posts: data.data.children.map((child) => child.data),
+      posts,
       subreddit: REDDIT_SUBREDDIT,
       isFallback: false,
     };
   } catch {
-    return {
-      posts: fallbackRedditPosts,
-      subreddit: REDDIT_SUBREDDIT,
-      isFallback: true,
-      errorMessage: 'Reddit 公開 JSON 目前無法連線，暫時使用備援展示資料。',
-    };
+    return createFallbackResult(
+      'Reddit public JSON is unavailable. Using fallback data.',
+    );
   }
 }
 

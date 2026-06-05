@@ -1,77 +1,78 @@
-# Frontend - Trend Radar
+# Trend Radar Frontend
 
-## 產品定位
+Frontend 使用 Next.js / React / TypeScript，負責 Phase 1 Demo 的 Dashboard、話題詳情彈窗、AI 分析與文案生成。
 
-前端主頁不是社群文案產生器，也不是讓使用者一進來輸入品牌並產生貼文。
+## 啟動
 
-前端體驗以「趨勢雷達 / Trend Radar」為核心：
-
-1. 發現趨勢
-2. 理解趨勢
-3. 評估是否適合自己的產業
-4. 產生內容靈感
-5. 再由使用者決定是否延伸成實際貼文
-
-## 主頁結構
-
-### Hero
-
-主標題：
-
-```text
-發現正在升溫的內容趨勢
+```powershell
+npm install
+npm run dev
 ```
 
-副標：
+預設網址：
 
 ```text
-即時追蹤社群、新聞與網路討論，找出值得跟進的話題、梗與內容靈感。
+http://localhost:3000
 ```
 
-CTA：
+## 建置
 
-- 查看今日趨勢
-- 輸入產業找靈感
+```powershell
+npm run build
+```
 
-### Dashboard
+## 主要畫面
 
-首頁包含：
+- 首頁 Dashboard
+- 所有熱門話題
+- 符合產業熱門話題
+- 自訂關鍵字熱門話題
+- 話題詳情彈窗
+- AI 分析與內容生成區塊
 
-- 今日熱門趨勢
-- 快速升溫趨勢
-- 跨平台爆紅趨勢
-- 即將過氣 / 熱度下降趨勢
-- 編輯精選 / AI 推薦觀察
+## Phase 1 資料來源
 
-## 主要頁面
+- `src/data/mockData.ts`
+- `src/data/importSamples/threads.sample.json`
+- `src/data/importSamples/dcard.sample.json`
 
-- `/`：趨勢雷達
-- `/explore`：趨勢探索
-- `/industries`：產業靈感
-- `/reports`：趨勢報告
-- `/saved`：收藏
-- `/trends/:id`：趨勢詳情
-- `/trends/:id/ideas`：內容靈感
+## Phase 1 資料流
 
-## 核心型別
+```text
+ContentItem
+-> NormalizedContent
+-> TopicCluster
+-> TrendSignal
+-> TrendReport
+-> InspirationIdea
+-> UI
+```
 
-- ContentItem
-- Topic
-- Trend
-- TrendSignal
-- TrendReport
-- InspirationIdea
+## AI Provider
 
-## Mock Data
+目前支援：
 
-`src/data/mockTrends.ts` 目前包含 5 個趨勢：
+- OpenAI adapter
+- mock / rule-based fallback
 
-- AI 搜尋取代傳統搜尋
-- 深夜美食地圖
-- 租屋壓力與居住焦慮
-- 復古相機濾鏡回潮
-- 名人道歉聲明模板化
+預設仍使用 mock，避免 Demo 因 API Key 或外部服務不穩而中斷。
 
-## 視覺方向
+```text
+AI_PROVIDER=mock
+OPENAI_API_KEY=
+OPENAI_MODEL=gpt-4o-mini
+```
 
-使用 dashboard layout、trend card、score badge、lifecycle badge、platform chips、growth indicator 與風險提示，讓產品看起來像內容研究工具，而不是文案產生器。
+啟用 OpenAI：
+
+```text
+AI_PROVIDER=openai
+OPENAI_API_KEY=你的金鑰
+```
+
+fallback 觸發條件：
+
+- 未設定 `AI_PROVIDER=openai`
+- 未設定 `OPENAI_API_KEY`
+- OpenAI API 回傳錯誤
+- 前端呼叫 `/api/ai-analysis` 失敗

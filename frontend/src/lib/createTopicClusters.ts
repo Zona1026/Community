@@ -10,7 +10,7 @@ export function createTopicClusters(items: NormalizedContent[]): TopicCluster[] 
   });
 
   return Array.from(clustersByPlatform.entries()).map(([platform, clusterItems]) => ({
-    id: platform.toLowerCase(),
+    id: platform.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
     name: `${platform} 熱門話題`,
     platform,
     items: clusterItems,
