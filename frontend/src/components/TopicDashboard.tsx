@@ -33,7 +33,10 @@ export interface DashboardTopic {
   id: string;
   topic: string;
   score: number;
+  growthRate: number;
   momentum: TrendSignal['momentum'];
+  lifecycleStage: TrendSignal['lifecycleStage'];
+  scoreHistory: TrendSignal['scoreHistory'];
   summary: string;
   insight: string;
   source: string;
@@ -56,6 +59,28 @@ interface DashboardOverview {
   highestScore: number;
   platformCount: number;
   riskTopicCount: number;
+}
+
+interface CopyEditorState {
+  topic: DashboardTopic;
+  copy: GeneratedCopy;
+  tone: AiTone;
+  angle: PostAngle;
+}
+
+interface CopyVersion {
+  id: string;
+  label: string;
+  text: string;
+  copy: GeneratedCopy;
+}
+
+interface CopyHistoryRecord {
+  id: string;
+  content: string;
+  tone: AiTone;
+  createdAt: string;
+  topicTitle: string;
 }
 
 interface PlatformDistributionItem {
@@ -93,6 +118,7 @@ interface AiObservation {
 
 const AI_TONES: AiTone[] = ['專業', '輕鬆', '犀利'];
 const POST_ANGLES: PostAngle[] = ['教學', '觀點', '懶人包'];
+const COPY_HISTORY_STORAGE_KEY = 'trend-radar-copy-history';
 const INDUSTRY_BASE_KEYWORDS = ['AI', 'Agent', 'ChatGPT', 'Automation'];
 const RISK_KEYWORDS = [
   '爭議',
@@ -119,6 +145,48 @@ function getMomentumLabel(momentum: TrendSignal['momentum']): string {
   }
 
   return '偏弱';
+}
+
+function getMomentumBadgeLevel(
+  momentum: TrendSignal['momentum'],
+): 'strong' | 'medium' | 'weak' {
+  if (momentum === 'rising') {
+    return 'strong';
+  }
+
+  if (momentum === 'stable') {
+    return 'medium';
+  }
+
+  return 'weak';
+}
+
+function MomentumBadge({ momentum }: { momentum: TrendSignal['momentum'] }) {
+  const level = getMomentumBadgeLevel(momentum);
+
+  return (
+    <span className={`momentum-badge momentum-badge--${level}`}>
+      {getMomentumLabel(momentum)}
+    </span>
+  );
+}
+
+function getLifecycleStageLabel(
+  lifecycleStage: TrendSignal['lifecycleStage'],
+): string {
+  if (lifecycleStage === 'growing') {
+    return 'Growing';
+  }
+
+  if (lifecycleStage === 'mainstream') {
+    return 'Mainstream';
+  }
+
+  if (lifecycleStage === 'declining') {
+    return 'Declining';
+  }
+
+  return 'Emerging';
 }
 
 function createAiInput(
@@ -210,12 +278,32 @@ function normalizeTopic(topic: unknown): DashboardTopic | null {
     id: String(value.id),
     topic: String(value.topic),
     score: Number.isFinite(Number(value.score)) ? Number(value.score) : 0,
+    growthRate: Number.isFinite(Number(value.growthRate))
+      ? Number(value.growthRate)
+      : 0,
     momentum:
       value.momentum === 'rising' ||
       value.momentum === 'stable' ||
       value.momentum === 'weak'
         ? value.momentum
         : 'weak',
+    lifecycleStage:
+      value.lifecycleStage === 'emerging' ||
+      value.lifecycleStage === 'growing' ||
+      value.lifecycleStage === 'mainstream' ||
+      value.lifecycleStage === 'declining'
+        ? value.lifecycleStage
+        : 'emerging',
+    scoreHistory: Array.isArray(value.scoreHistory)
+      ? value.scoreHistory
+          .filter((point) => point && typeof point === 'object')
+          .map((point) => ({
+            label: String(point.label ?? ''),
+            score: Number.isFinite(Number(point.score))
+              ? Number(point.score)
+              : 0,
+          }))
+      : [],
     summary: value.summary ? String(value.summary) : '目前尚無摘要。',
     insight: value.insight ? String(value.insight) : '目前尚無洞察。',
     source: value.source ? String(value.source) : 'Unknown',
@@ -511,8 +599,18 @@ function TopicCard({
 
       <dl className="topic-card__meta">
         <div>
+          <dt>Growth Rate</dt>
+          <dd>{topic.growthRate}%</dd>
+        </div>
+        <div>
           <dt>Momentum</dt>
-          <dd>{getMomentumLabel(topic.momentum)}</dd>
+          <dd>
+            <MomentumBadge momentum={topic.momentum} />
+          </dd>
+        </div>
+        <div>
+          <dt>Lifecycle Stage</dt>
+          <dd>{getLifecycleStageLabel(topic.lifecycleStage)}</dd>
         </div>
         <div>
           <dt>Source</dt>
@@ -927,6 +1025,104 @@ function TagList({ label, tags }: { label: string; tags: string[] }) {
   );
 }
 
+function TrendChartMvp({
+  scoreHistory,
+}: {
+  scoreHistory: TrendSignal['scoreHistory'];
+}) {
+  if (scoreHistory.length === 0) {
+    return <p>No score history available.</p>;
+  }
+
+  const chartWidth = 320;
+  const chartHeight = 160;
+  const paddingX = 28;
+  const paddingY = 22;
+  const scores = scoreHistory.map((point) => point.score);
+  const minScore = Math.min(...scores);
+  const maxScore = Math.max(...scores);
+  const scoreRange = maxScore - minScore || 1;
+  const plotWidth = chartWidth - paddingX * 2;
+  const plotHeight = chartHeight - paddingY * 2;
+  const points = scoreHistory.map((point, index) => {
+    const x =
+      scoreHistory.length === 1
+        ? chartWidth / 2
+        : paddingX + (index / (scoreHistory.length - 1)) * plotWidth;
+    const y =
+      chartHeight -
+      paddingY -
+      ((point.score - minScore) / scoreRange) * plotHeight;
+
+    return {
+      ...point,
+      x,
+      y,
+    };
+  });
+  const linePoints = points.map((point) => `${point.x},${point.y}`).join(' ');
+
+  return (
+    <div className="trend-chart" aria-label="Score history trend chart">
+      <svg
+        aria-hidden="true"
+        className="trend-chart__svg"
+        focusable="false"
+        viewBox={`0 0 ${chartWidth} ${chartHeight}`}
+      >
+        <line
+          className="trend-chart__axis"
+          x1={paddingX}
+          x2={chartWidth - paddingX}
+          y1={chartHeight - paddingY}
+          y2={chartHeight - paddingY}
+        />
+        <line
+          className="trend-chart__axis"
+          x1={paddingX}
+          x2={paddingX}
+          y1={paddingY}
+          y2={chartHeight - paddingY}
+        />
+        <polyline className="trend-chart__line" points={linePoints} />
+        {points.map((point) => (
+          <g key={`${point.label}-${point.score}`}>
+            <circle
+              className="trend-chart__point"
+              cx={point.x}
+              cy={point.y}
+              r="4"
+            />
+            <text
+              className="trend-chart__score"
+              x={point.x}
+              y={Math.max(point.y - 10, 12)}
+              textAnchor="middle"
+            >
+              {point.score}
+            </text>
+            <text
+              className="trend-chart__label"
+              x={point.x}
+              y={chartHeight - 6}
+              textAnchor="middle"
+            >
+              {point.label}
+            </text>
+          </g>
+        ))}
+      </svg>
+      <ul className="trend-chart__values">
+        {scoreHistory.map((point) => (
+          <li key={`${point.label}-${point.score}-value`}>
+            {point.label}: {point.score}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function SelectField<TValue extends string>({
   id,
   label,
@@ -958,35 +1154,427 @@ function SelectField<TValue extends string>({
   );
 }
 
-function GeneratedCopyList({ copies }: { copies: GeneratedCopy[] }) {
-  if (copies.length === 0) {
-    return <p>尚未產生文案，請選擇語氣與發文角度後產生。</p>;
+function AiCopyEditorModal({
+  copy,
+  topicTitle,
+  tone,
+  angle,
+  onRegenerate,
+  onClose,
+}: {
+  copy: GeneratedCopy;
+  topicTitle: string;
+  tone: AiTone;
+  angle: PostAngle;
+  onRegenerate: () => Promise<GeneratedCopy | null>;
+  onClose: () => void;
+}) {
+  const [versions, setVersions] = useState<CopyVersion[]>(() => [
+    {
+      id: copy.id,
+      label: 'Version 1',
+      text: copy.text,
+      copy,
+    },
+  ]);
+  const [selectedVersionId, setSelectedVersionId] = useState(copy.id);
+  const [editedText, setEditedText] = useState(copy.text);
+  const [copyStatus, setCopyStatus] = useState<'idle' | 'success' | 'error'>(
+    'idle',
+  );
+  const [exportStatus, setExportStatus] = useState<
+    'idle' | 'success' | 'empty'
+  >('idle');
+  const [historyStatus, setHistoryStatus] = useState<
+    'idle' | 'saved' | 'empty' | 'error' | 'loaded'
+  >('idle');
+  const [copyHistory, setCopyHistory] = useState<CopyHistoryRecord[]>([]);
+  const [isRegenerating, setIsRegenerating] = useState(false);
+  const [regenerateError, setRegenerateError] = useState('');
+
+  useEffect(() => {
+    try {
+      const rawHistory = window.localStorage.getItem(COPY_HISTORY_STORAGE_KEY);
+
+      if (!rawHistory) {
+        return;
+      }
+
+      const parsedHistory = JSON.parse(rawHistory) as CopyHistoryRecord[];
+
+      if (Array.isArray(parsedHistory)) {
+        setCopyHistory(
+          parsedHistory.filter(
+            (record) =>
+              record &&
+              typeof record.id === 'string' &&
+              typeof record.content === 'string' &&
+              typeof record.tone === 'string' &&
+              typeof record.createdAt === 'string' &&
+              typeof record.topicTitle === 'string',
+          ),
+        );
+      }
+    } catch {
+      setCopyHistory([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    setVersions((currentVersions) => {
+      if (currentVersions.some((version) => version.id === copy.id)) {
+        return currentVersions;
+      }
+
+      return [
+        ...currentVersions,
+        {
+          id: copy.id,
+          label: `Version ${currentVersions.length + 1}`,
+          text: copy.text,
+          copy,
+        },
+      ];
+    });
+    setSelectedVersionId(copy.id);
+    setEditedText(copy.text);
+    setCopyStatus('idle');
+    setExportStatus('idle');
+    setHistoryStatus('idle');
+    setRegenerateError('');
+  }, [copy]);
+
+  function updateSelectedVersionText(text: string) {
+    setVersions((currentVersions) =>
+      currentVersions.map((version) =>
+        version.id === selectedVersionId
+          ? {
+              ...version,
+              text,
+            }
+          : version,
+      ),
+    );
+  }
+
+  function handleTextChange(text: string) {
+    setEditedText(text);
+    updateSelectedVersionText(text);
+    setExportStatus('idle');
+  }
+
+  function handleSelectVersion(versionId: string) {
+    updateSelectedVersionText(editedText);
+
+    const nextVersion = versions.find((version) => version.id === versionId);
+
+    if (!nextVersion) {
+      return;
+    }
+
+    setSelectedVersionId(versionId);
+    setEditedText(nextVersion.text);
+    setCopyStatus('idle');
+    setExportStatus('idle');
+    setHistoryStatus('idle');
+    setRegenerateError('');
+  }
+
+  async function handleCopy() {
+    try {
+      await navigator.clipboard.writeText(editedText);
+      setCopyStatus('success');
+      setExportStatus('idle');
+      setHistoryStatus('idle');
+    } catch {
+      setCopyStatus('error');
+      setExportStatus('idle');
+      setHistoryStatus('idle');
+    }
+  }
+
+  function handleExportTxt() {
+    const text = editedText.trim();
+
+    setCopyStatus('idle');
+    setHistoryStatus('idle');
+
+    if (!text) {
+      setExportStatus('empty');
+      return;
+    }
+
+    const file = new Blob([editedText], {
+      type: 'text/plain;charset=utf-8',
+    });
+    const url = URL.createObjectURL(file);
+    const link = document.createElement('a');
+
+    link.href = url;
+    link.download = 'ai-copy.txt';
+    link.click();
+    URL.revokeObjectURL(url);
+    setExportStatus('success');
+  }
+
+  async function handleRegenerate() {
+    setIsRegenerating(true);
+    setRegenerateError('');
+    setCopyStatus('idle');
+    setExportStatus('idle');
+    setHistoryStatus('idle');
+
+    try {
+      const nextCopy = await onRegenerate();
+
+      if (!nextCopy) {
+        setRegenerateError('重新生成失敗，請稍後再試。');
+        return;
+      }
+
+      setEditedText(nextCopy.text);
+      setCopyStatus('idle');
+    } catch {
+      setRegenerateError('重新生成失敗，請稍後再試。');
+    } finally {
+      setIsRegenerating(false);
+    }
+  }
+
+  function handleSaveToHistory() {
+    const content = editedText.trim();
+
+    setCopyStatus('idle');
+    setExportStatus('idle');
+    setRegenerateError('');
+
+    if (!content) {
+      setHistoryStatus('empty');
+      return;
+    }
+
+    const record: CopyHistoryRecord = {
+      id:
+        typeof crypto !== 'undefined' && 'randomUUID' in crypto
+          ? crypto.randomUUID()
+          : `${Date.now()}`,
+      content: editedText,
+      tone,
+      createdAt: new Date().toISOString(),
+      topicTitle,
+    };
+    const nextHistory = [record, ...copyHistory];
+
+    try {
+      window.localStorage.setItem(
+        COPY_HISTORY_STORAGE_KEY,
+        JSON.stringify(nextHistory),
+      );
+      setCopyHistory(nextHistory);
+      setHistoryStatus('saved');
+    } catch {
+      setHistoryStatus('error');
+    }
+  }
+
+  function handleLoadHistory(record: CopyHistoryRecord) {
+    handleTextChange(record.content);
+    setCopyStatus('idle');
+    setExportStatus('idle');
+    setRegenerateError('');
+    setHistoryStatus('loaded');
+  }
+
+  function getStatusMessage() {
+    if (isRegenerating) {
+      return '重新生成中';
+    }
+
+    if (regenerateError) {
+      return regenerateError;
+    }
+
+    if (copyStatus === 'success') {
+      return '已複製';
+    }
+
+    if (copyStatus === 'error') {
+      return '複製失敗，請手動選取文字';
+    }
+
+    if (exportStatus === 'success') {
+      return 'TXT 已匯出';
+    }
+
+    if (exportStatus === 'empty') {
+      return '文案內容為空，無法匯出。';
+    }
+
+    if (historyStatus === 'saved') {
+      return '已儲存到 History';
+    }
+
+    if (historyStatus === 'loaded') {
+      return '已載入歷史紀錄';
+    }
+
+    if (historyStatus === 'empty') {
+      return '文案內容為空，無法儲存。';
+    }
+
+    if (historyStatus === 'error') {
+      return 'History 儲存失敗，請稍後再試。';
+    }
+
+    return '';
   }
 
   return (
-    <ul className="topic-detail__copy-list">
-      {copies.map((copy) => (
-        <li key={copy.id}>
-          <div className="topic-detail__copy-meta">
-            <span>{copy.tone}</span>
-            <span>{copy.angle}</span>
+    <div className="copy-editor-modal" role="presentation">
+      <button
+        aria-label="關閉文案編輯視窗"
+        className="copy-editor-modal__backdrop"
+        type="button"
+        onClick={onClose}
+      />
+      <section
+        aria-label="AI 文案編輯"
+        aria-modal="true"
+        className="copy-editor"
+        role="dialog"
+      >
+        <header className="copy-editor__header">
+          <div>
+            <p className="topic-detail__eyebrow">
+              Tone: {tone}
+            </p>
+            <h3>AI Copy Editor</h3>
           </div>
-          <p>{copy.text}</p>
-        </li>
-      ))}
-    </ul>
+          <button className="topic-detail__close" type="button" onClick={onClose}>
+            關閉
+          </button>
+        </header>
+
+        <dl className="copy-editor__meta">
+          <div>
+            <dt>Tone</dt>
+            <dd>{tone}</dd>
+          </div>
+          <div>
+            <dt>Angle</dt>
+            <dd>{angle}</dd>
+          </div>
+        </dl>
+
+        <div className="copy-editor__versions" aria-label="文案版本">
+          {versions.map((version) => (
+            <button
+              key={version.id}
+              className={
+                version.id === selectedVersionId
+                  ? 'copy-editor__version is-active'
+                  : 'copy-editor__version'
+              }
+              type="button"
+              onClick={() => handleSelectVersion(version.id)}
+            >
+              {version.label}
+            </button>
+          ))}
+        </div>
+
+        <textarea
+          aria-label="AI 文案內容"
+          className="copy-editor__textarea"
+          value={editedText}
+          onChange={(event) => handleTextChange(event.target.value)}
+        />
+
+        <section className="copy-editor__history" aria-label="Copy History">
+          <div className="copy-editor__history-header">
+            <h4>History</h4>
+            <span>{copyHistory.length}</span>
+          </div>
+          {copyHistory.length > 0 ? (
+            <div className="copy-editor__history-list">
+              {copyHistory.map((record) => (
+                <button
+                  key={record.id}
+                  className="copy-editor__history-item"
+                  type="button"
+                  onClick={() => handleLoadHistory(record)}
+                >
+                  <strong>{record.topicTitle}</strong>
+                  <span>
+                    {record.tone} ·{' '}
+                    {new Date(record.createdAt).toLocaleString('zh-TW')}
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p>尚無歷史紀錄。</p>
+          )}
+        </section>
+
+        <footer className="copy-editor__footer">
+          <span className="copy-editor__status" aria-live="polite">
+            {getStatusMessage()}
+          </span>
+          <div className="copy-editor__actions">
+            <button
+              className="copy-editor__regenerate"
+              type="button"
+              onClick={handleRegenerate}
+              disabled={isRegenerating}
+            >
+              {isRegenerating ? '重新生成中' : '重新生成'}
+            </button>
+            <button
+              className="copy-editor__copy"
+              type="button"
+              onClick={handleCopy}
+              disabled={isRegenerating}
+            >
+              一鍵複製
+            </button>
+            <button
+              className="copy-editor__export"
+              type="button"
+              onClick={handleExportTxt}
+              disabled={isRegenerating}
+            >
+              匯出 TXT
+            </button>
+            <button
+              className="copy-editor__save"
+              type="button"
+              onClick={handleSaveToHistory}
+              disabled={isRegenerating}
+            >
+              Save to History
+            </button>
+            <button
+              className="copy-editor__close"
+              type="button"
+              onClick={onClose}
+            >
+              關閉
+            </button>
+          </div>
+        </footer>
+      </section>
+    </div>
   );
 }
 
 function TopicDetailModal({
   topic,
-  generatedCopies,
   defaultTone,
   onGenerateCopy,
   onClose,
 }: {
   topic: DashboardTopic;
-  generatedCopies: GeneratedCopy[];
   defaultTone: AiTone;
   onGenerateCopy: (
     topic: DashboardTopic,
@@ -1074,8 +1662,18 @@ function TopicDetailModal({
             <dd>{topic.score}</dd>
           </div>
           <div>
+            <dt>Growth Rate</dt>
+            <dd>{topic.growthRate}%</dd>
+          </div>
+          <div>
             <dt>Momentum</dt>
-            <dd>{getMomentumLabel(topic.momentum)}</dd>
+            <dd>
+              <MomentumBadge momentum={topic.momentum} />
+            </dd>
+          </div>
+          <div>
+            <dt>Lifecycle Stage</dt>
+            <dd>{getLifecycleStageLabel(topic.lifecycleStage)}</dd>
           </div>
           <div>
             <dt>Source</dt>
@@ -1096,6 +1694,11 @@ function TopicDetailModal({
           <section className="topic-detail__panel">
             <h3>Insight</h3>
             <p>{topic.insight}</p>
+          </section>
+
+          <section className="topic-detail__panel">
+            <h3>Score History</h3>
+            <TrendChartMvp scoreHistory={topic.scoreHistory} />
           </section>
 
           <section className="topic-detail__panel topic-detail__panel--warning">
@@ -1235,10 +1838,6 @@ function TopicDetailModal({
                   <p>AI 內容靈感暫時無法產生。</p>
                 )}
               </section>
-              <section>
-                <h4>生成文案</h4>
-                <GeneratedCopyList copies={generatedCopies} />
-              </section>
             </div>
           </section>
         </div>
@@ -1266,9 +1865,8 @@ export function TopicDashboard({
   const [settingsSourceLabel, setSettingsSourceLabel] = useState('Fallback settings');
   const [favoritesSourceLabel, setFavoritesSourceLabel] =
     useState('Fallback favorites');
-  const [generatedCopiesByTopic, setGeneratedCopiesByTopic] = useState<
-    Record<string, GeneratedCopy[]>
-  >({});
+  const [copyEditorState, setCopyEditorState] =
+    useState<CopyEditorState | null>(null);
 
   useEffect(() => {
     let isCurrent = true;
@@ -1392,27 +1990,34 @@ export function TopicDashboard({
     );
   }
 
+  async function generateCopyForTopic(
+    topic: DashboardTopic,
+    tone: AiTone,
+    angle: PostAngle,
+  ): Promise<GeneratedCopy | null> {
+    const analysis = await requestAiAnalysis(createAiInput(topic, tone, angle));
+
+    return analysis.generatedCopies[0] ?? null;
+  }
+
   async function handleGenerateCopy(
     topic: DashboardTopic,
     tone: AiTone,
     angle: PostAngle,
   ) {
-    const analysis = await requestAiAnalysis(createAiInput(topic, tone, angle));
-    const nextCopy = analysis.generatedCopies[0];
+    const nextCopy = await generateCopyForTopic(topic, tone, angle);
 
     if (!nextCopy) {
       return;
     }
 
-    setGeneratedCopiesByTopic((current) => ({
-      ...current,
-      [topic.id]: [nextCopy, ...(current[topic.id] ?? [])].slice(0, 3),
-    }));
+    setCopyEditorState({ topic, copy: nextCopy, tone, angle });
   }
 
-  const selectedTopicCopies = selectedTopic
-    ? generatedCopiesByTopic[selectedTopic.id] ?? []
-    : [];
+  function handleCloseTopicDetail() {
+    setSelectedTopic(null);
+    setCopyEditorState(null);
+  }
 
   return (
     <>
@@ -1502,10 +2107,38 @@ export function TopicDashboard({
       {selectedTopic ? (
         <TopicDetailModal
           topic={selectedTopic}
-          generatedCopies={selectedTopicCopies}
           defaultTone={userSettings.tone}
           onGenerateCopy={handleGenerateCopy}
-          onClose={() => setSelectedTopic(null)}
+          onClose={handleCloseTopicDetail}
+        />
+      ) : null}
+      {copyEditorState ? (
+        <AiCopyEditorModal
+          copy={copyEditorState.copy}
+          topicTitle={copyEditorState.topic.topic}
+          tone={copyEditorState.tone}
+          angle={copyEditorState.angle}
+          onRegenerate={async () => {
+            const nextCopy = await generateCopyForTopic(
+              copyEditorState.topic,
+              copyEditorState.tone,
+              copyEditorState.angle,
+            );
+
+            if (nextCopy) {
+              setCopyEditorState((current) =>
+                current
+                  ? {
+                      ...current,
+                      copy: nextCopy,
+                    }
+                  : current,
+              );
+            }
+
+            return nextCopy;
+          }}
+          onClose={() => setCopyEditorState(null)}
         />
       ) : null}
     </>

@@ -7,6 +7,13 @@ export interface NormalizedContent {
   engagementScore: number;
   hotScore: number;
   hotTags: string[];
+  growthRate?: number;
+  momentum?: 'rising' | 'stable' | 'weak';
+  lifecycleStage?: 'emerging' | 'growing' | 'mainstream' | 'declining';
+  scoreHistory?: Array<{
+    label: string;
+    score: number;
+  }>;
   likeCount: number;
   commentCount: number;
   industryTags: string[];

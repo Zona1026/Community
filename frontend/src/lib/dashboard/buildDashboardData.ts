@@ -82,7 +82,11 @@ function createDashboardTopics(
       id: cluster.id,
       topic: report?.topic ?? cluster.name,
       score: report?.score ?? signal?.score ?? 0,
+      growthRate: report?.growthRate ?? signal?.growthRate ?? 0,
       momentum: report?.momentum ?? signal?.momentum ?? 'weak',
+      lifecycleStage:
+        report?.lifecycleStage ?? signal?.lifecycleStage ?? 'emerging',
+      scoreHistory: report?.scoreHistory ?? signal?.scoreHistory ?? [],
       summary:
         report?.summary ??
         `${cluster.name} 目前整合 ${cluster.items.length} 筆內容。`,

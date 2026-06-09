@@ -7,7 +7,9 @@ REDDIT_FALLBACK_TOPIC = {
     "id": "reddit-artificial",
     "topic": "Reddit r/artificial 熱門話題",
     "score": 310,
+    "growthRate": 18,
     "momentum": "stable",
+    "lifecycleStage": "mainstream",
     "summary": "Reddit fallback 資料整合 AI agents、open source models 與 AI search 討論。",
     "insight": "Reddit 可作為第二資料來源，驗證多來源資料整合能力。",
     "source": "Reddit r/artificial",
@@ -76,13 +78,16 @@ def build_topics_from_json_sample(json_data: Any) -> list[dict[str, Any]]:
         like_count = _safe_int(item.get("likeCount"))
         comment_count = _safe_int(item.get("commentCount"))
         score = like_count + comment_count * 2
+        growth_rate = 24 if score >= 1000 else 12 if score >= 40 else 4
 
         topics.append(
             {
                 "id": topic_id,
                 "topic": title,
                 "score": score,
+                "growthRate": growth_rate,
                 "momentum": "stable" if score >= 40 else "weak",
+                "lifecycleStage": "growing",
                 "summary": content[:120] or title,
                 "insight": "此資料由後端 JSON sample fallback 產生。",
                 "source": platform,

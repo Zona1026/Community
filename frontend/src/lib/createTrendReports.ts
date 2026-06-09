@@ -30,7 +30,10 @@ export function createTrendReports(signals: TrendSignal[]): TrendReport[] {
     id: signal.id,
     topic: signal.topicName,
     score: signal.score,
+    growthRate: signal.growthRate,
     momentum: signal.momentum,
+    lifecycleStage: signal.lifecycleStage,
+    scoreHistory: signal.scoreHistory,
     summary: `${signal.topicName} 目前有 ${signal.topics.length} 筆相關內容，趨勢狀態為${getMomentumText(signal.momentum)}。`,
     evidence: [
       `相關內容數量：${signal.topics.length} 筆`,

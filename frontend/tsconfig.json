@@ -12,7 +12,7 @@
     "skipLibCheck": true,
     "allowJs": true,
     "noEmit": true,
-    "incremental": true,
+    "incremental": false,
     "plugins": [
       {
         "name": "next"
