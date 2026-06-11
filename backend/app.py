@@ -5,9 +5,25 @@ from typing import Any
 
 from flask import Flask, request
 
-from db import get_database_url, initialize_database, insert_smoke_test_data
+from db import (
+    get_rss_ingestion_status,
+    get_rss_topic_candidates,
+    get_database_url,
+    initialize_database,
+    insert_smoke_test_data,
+    run_rss_upsert_smoke_test,
+)
 from favorites import add_favorite, get_favorites, remove_favorite
-from topics import build_topics_from_json_sample, find_topic
+from mock_topics import find_mock_topic, get_mock_topics
+from reddit_oauth import run_reddit_oauth_smoke_test, validate_reddit_env
+from rss_feed import (
+    run_rss_dry_run_ingestion_summary,
+    run_rss_fetch_smoke_test,
+    run_rss_manual_ingestion,
+    run_rss_parser_smoke_test,
+    validate_rss_env,
+)
+from topic_repository import find_topic_from_database, get_topics_from_database
 from user_settings import get_user_settings, save_user_settings
 
 
@@ -69,21 +85,103 @@ def create_app() -> Flask:
         result = insert_smoke_test_data()
         return result, 200
 
+    @app.post("/dev/rss-upsert-smoke")
+    def rss_upsert_smoke_test() -> tuple[dict[str, Any], int]:
+        init_result = initialize_database()
+
+        if init_result["status"] == "skipped":
+            return init_result, 200
+
+        result = run_rss_upsert_smoke_test()
+        status_code = 502 if result["status"] == "failed" else 200
+
+        return result, status_code
+
+    @app.post("/dev/rss-ingest")
+    def rss_manual_ingest() -> tuple[dict[str, Any], int]:
+        init_result = initialize_database()
+
+        if init_result["status"] == "skipped":
+            return init_result, 200
+
+        result = run_rss_manual_ingestion()
+        status_code = 502 if result["status"] == "failed" else 200
+
+        return result, status_code
+
+    @app.get("/dev/rss-status")
+    def rss_ingestion_status() -> tuple[dict[str, Any], int]:
+        result = get_rss_ingestion_status()
+        status_code = 502 if result["status"] == "failed" else 200
+
+        return result, status_code
+
+    @app.get("/dev/rss-topic-candidates")
+    def rss_topic_candidates() -> tuple[dict[str, Any], int]:
+        raw_limit = request.args.get("limit", "10")
+
+        try:
+            limit = int(raw_limit)
+        except ValueError:
+            limit = 10
+
+        result = get_rss_topic_candidates(limit)
+        status_code = 502 if result["status"] == "failed" else 200
+
+        return result, status_code
+
+    @app.get("/reddit/status")
+    def reddit_status() -> tuple[dict[str, Any], int]:
+        return validate_reddit_env(), 200
+
+    @app.post("/reddit/oauth-smoke-test")
+    def reddit_oauth_smoke_test() -> tuple[dict[str, Any], int]:
+        result = run_reddit_oauth_smoke_test()
+        status_code = 502 if result["status"] == "failed" else 200
+
+        return result, status_code
+
+    @app.get("/rss/status")
+    def rss_status() -> tuple[dict[str, Any], int]:
+        return validate_rss_env(), 200
+
+    @app.post("/rss/fetch-smoke-test")
+    def rss_fetch_smoke_test() -> tuple[dict[str, Any], int]:
+        result = run_rss_fetch_smoke_test()
+        status_code = 502 if result["status"] == "failed" else 200
+
+        return result, status_code
+
+    @app.post("/rss/parser-smoke-test")
+    def rss_parser_smoke_test() -> tuple[dict[str, Any], int]:
+        result = run_rss_parser_smoke_test()
+        status_code = 502 if result["status"] == "failed" else 200
+
+        return result, status_code
+
+    @app.post("/rss/dry-run-ingestion-summary")
+    def rss_dry_run_ingestion_summary() -> tuple[dict[str, Any], int]:
+        result = run_rss_dry_run_ingestion_summary()
+        status_code = 502 if result["status"] == "failed" else 200
+
+        return result, status_code
+
     @app.get("/api/topics")
     def topics_index() -> tuple[dict[str, Any], int]:
-        topics = build_topics_from_json_sample(load_json_mock_data())
+        db_topics = get_topics_from_database()
+        is_database_source = len(db_topics) > 0
+        topics = db_topics if is_database_source else get_mock_topics()
 
         return {
             "allTopics": topics,
             "industryTopics": topics,
             "userKeywordTopics": topics,
-            "source": "flask-json-fallback",
+            "source": "postgresql" if is_database_source else "flask-mock-api",
         }, 200
 
     @app.get("/api/topics/<topic_id>")
     def topics_show(topic_id: str) -> tuple[dict[str, Any], int]:
-        topics = build_topics_from_json_sample(load_json_mock_data())
-        topic = find_topic(topics, topic_id)
+        topic = find_topic_from_database(topic_id) or find_mock_topic(topic_id)
 
         if topic is None:
             return {"error": "Topic not found."}, 404

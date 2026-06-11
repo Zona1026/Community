@@ -978,18 +978,29 @@ h1 {
   gap: 18px;
   width: min(720px, 100%);
   max-height: min(720px, calc(100vh - 48px));
+  overflow: auto;
   padding: 24px;
   border-radius: 8px;
   background: #ffffff;
   box-shadow: 0 24px 70px rgb(23 32 42 / 32%);
 }
 
-.copy-editor__header,
-.copy-editor__footer {
+.copy-editor__header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
+}
+
+.copy-editor__footer {
+  position: sticky;
+  bottom: -24px;
+  display: grid;
+  gap: 12px;
+  margin: 0 -24px -24px;
+  padding: 12px 24px 24px;
+  border-top: 1px solid #e4e9f0;
+  background: #ffffff;
 }
 
 .copy-editor h3 {
@@ -1136,10 +1147,11 @@ h1 {
 }
 
 .copy-editor__status {
-  min-height: 42px;
+  min-height: 22px;
   color: #2d5aa7;
   font-size: 0.9rem;
   font-weight: 700;
+  overflow-wrap: anywhere;
 }
 
 .copy-editor__actions {
@@ -1147,19 +1159,20 @@ h1 {
   flex-wrap: wrap;
   gap: 10px;
   justify-content: flex-end;
+  max-width: 100%;
 }
 
 .copy-editor__regenerate,
 .copy-editor__copy,
-.copy-editor__export,
-.copy-editor__save,
-.copy-editor__close {
+.copy-editor__save {
   min-height: 42px;
+  max-width: 100%;
   padding: 8px 14px;
   border-radius: 8px;
   font: inherit;
   font-weight: 700;
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .copy-editor__regenerate {
@@ -1186,18 +1199,6 @@ h1 {
   outline: none;
 }
 
-.copy-editor__export {
-  border: 1px solid #cbd6e2;
-  background: #f6f8fb;
-  color: #17202a;
-}
-
-.copy-editor__export:hover,
-.copy-editor__export:focus-visible {
-  border-color: #3761a8;
-  outline: none;
-}
-
 .copy-editor__save {
   border: 1px solid #2f7d4a;
   background: #e8f6ed;
@@ -1210,21 +1211,8 @@ h1 {
   outline: none;
 }
 
-.copy-editor__close {
-  border: 1px solid #cbd6e2;
-  background: #ffffff;
-  color: #17202a;
-}
-
-.copy-editor__close:hover,
-.copy-editor__close:focus-visible {
-  border-color: #3761a8;
-  outline: none;
-}
-
 .copy-editor__regenerate:disabled,
 .copy-editor__copy:disabled,
-.copy-editor__export:disabled,
 .copy-editor__save:disabled {
   border-color: #cbd6e2;
   background: #e4e9f0;
@@ -1271,8 +1259,13 @@ h1 {
     padding: 20px;
   }
 
-  .copy-editor__header,
   .copy-editor__footer {
+    bottom: -20px;
+    margin: 0 -20px -20px;
+    padding: 12px 20px 20px;
+  }
+
+  .copy-editor__header {
     flex-direction: column;
   }
 
@@ -1282,13 +1275,12 @@ h1 {
 
   .copy-editor__actions {
     width: 100%;
+    justify-content: stretch;
   }
 
   .copy-editor__regenerate,
   .copy-editor__copy,
-  .copy-editor__export,
-  .copy-editor__save,
-  .copy-editor__close {
+  .copy-editor__save {
     flex: 1 1 160px;
   }
 }

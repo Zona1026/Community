@@ -1182,9 +1182,6 @@ function AiCopyEditorModal({
   const [copyStatus, setCopyStatus] = useState<'idle' | 'success' | 'error'>(
     'idle',
   );
-  const [exportStatus, setExportStatus] = useState<
-    'idle' | 'success' | 'empty'
-  >('idle');
   const [historyStatus, setHistoryStatus] = useState<
     'idle' | 'saved' | 'empty' | 'error' | 'loaded'
   >('idle');
@@ -1239,7 +1236,6 @@ function AiCopyEditorModal({
     setSelectedVersionId(copy.id);
     setEditedText(copy.text);
     setCopyStatus('idle');
-    setExportStatus('idle');
     setHistoryStatus('idle');
     setRegenerateError('');
   }, [copy]);
@@ -1260,7 +1256,6 @@ function AiCopyEditorModal({
   function handleTextChange(text: string) {
     setEditedText(text);
     updateSelectedVersionText(text);
-    setExportStatus('idle');
   }
 
   function handleSelectVersion(versionId: string) {
@@ -1275,7 +1270,6 @@ function AiCopyEditorModal({
     setSelectedVersionId(versionId);
     setEditedText(nextVersion.text);
     setCopyStatus('idle');
-    setExportStatus('idle');
     setHistoryStatus('idle');
     setRegenerateError('');
   }
@@ -1284,44 +1278,17 @@ function AiCopyEditorModal({
     try {
       await navigator.clipboard.writeText(editedText);
       setCopyStatus('success');
-      setExportStatus('idle');
       setHistoryStatus('idle');
     } catch {
       setCopyStatus('error');
-      setExportStatus('idle');
       setHistoryStatus('idle');
     }
-  }
-
-  function handleExportTxt() {
-    const text = editedText.trim();
-
-    setCopyStatus('idle');
-    setHistoryStatus('idle');
-
-    if (!text) {
-      setExportStatus('empty');
-      return;
-    }
-
-    const file = new Blob([editedText], {
-      type: 'text/plain;charset=utf-8',
-    });
-    const url = URL.createObjectURL(file);
-    const link = document.createElement('a');
-
-    link.href = url;
-    link.download = 'ai-copy.txt';
-    link.click();
-    URL.revokeObjectURL(url);
-    setExportStatus('success');
   }
 
   async function handleRegenerate() {
     setIsRegenerating(true);
     setRegenerateError('');
     setCopyStatus('idle');
-    setExportStatus('idle');
     setHistoryStatus('idle');
 
     try {
@@ -1345,7 +1312,6 @@ function AiCopyEditorModal({
     const content = editedText.trim();
 
     setCopyStatus('idle');
-    setExportStatus('idle');
     setRegenerateError('');
 
     if (!content) {
@@ -1380,7 +1346,6 @@ function AiCopyEditorModal({
   function handleLoadHistory(record: CopyHistoryRecord) {
     handleTextChange(record.content);
     setCopyStatus('idle');
-    setExportStatus('idle');
     setRegenerateError('');
     setHistoryStatus('loaded');
   }
@@ -1400,14 +1365,6 @@ function AiCopyEditorModal({
 
     if (copyStatus === 'error') {
       return '複製失敗，請手動選取文字';
-    }
-
-    if (exportStatus === 'success') {
-      return 'TXT 已匯出';
-    }
-
-    if (exportStatus === 'empty') {
-      return '文案內容為空，無法匯出。';
     }
 
     if (historyStatus === 'saved') {
@@ -1539,27 +1496,12 @@ function AiCopyEditorModal({
               一鍵複製
             </button>
             <button
-              className="copy-editor__export"
-              type="button"
-              onClick={handleExportTxt}
-              disabled={isRegenerating}
-            >
-              匯出 TXT
-            </button>
-            <button
               className="copy-editor__save"
               type="button"
               onClick={handleSaveToHistory}
               disabled={isRegenerating}
             >
-              Save to History
-            </button>
-            <button
-              className="copy-editor__close"
-              type="button"
-              onClick={onClose}
-            >
-              關閉
+              保存
             </button>
           </div>
         </footer>
