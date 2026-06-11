@@ -230,6 +230,42 @@ function topicSearchText(topic: DashboardTopic): string {
     .toLowerCase();
 }
 
+function normalizeSourceText(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function getTopicSourceBadge(topic: DashboardTopic): string {
+  const sourceCandidates = [
+    topic.source,
+    ...topic.platformTags,
+    ...topic.relatedContent.map((content) => content.source),
+  ]
+    .map(normalizeSourceText)
+    .filter(Boolean);
+
+  const normalizedCandidates = sourceCandidates.map((source) =>
+    source.toLowerCase(),
+  );
+
+  if (
+    normalizedCandidates.includes('podcast_smoke_test') ||
+    normalizedCandidates.includes('podcast')
+  ) {
+    return 'Podcast';
+  }
+
+  if (
+    normalizedCandidates.includes('rss_smoke_test') ||
+    normalizedCandidates.includes('rss')
+  ) {
+    return 'RSS';
+  }
+
+  const primarySource = normalizeSourceText(topic.source);
+
+  return primarySource || 'Unknown';
+}
+
 function matchesKeywords(topic: DashboardTopic, keywords: string[]): boolean {
   const searchText = topicSearchText(topic);
 
@@ -585,11 +621,13 @@ function TopicCard({
   onOpen: (topic: DashboardTopic) => void;
   onToggleFavorite: (topic: DashboardTopic) => void;
 }) {
+  const sourceBadge = getTopicSourceBadge(topic);
+
   return (
     <article className={isFavorite ? 'topic-card topic-card--favorite' : 'topic-card'}>
       <header className="topic-card__header">
         <div>
-          <p className="topic-card__source">{topic.source}</p>
+          <p className="topic-card__source">{sourceBadge}</p>
           <h3>{topic.topic}</h3>
         </div>
         <div className="topic-card__score">{topic.score}</div>
@@ -614,7 +652,7 @@ function TopicCard({
         </div>
         <div>
           <dt>Source</dt>
-          <dd>{topic.source}</dd>
+          <dd>{sourceBadge}</dd>
         </div>
         <div>
           <dt>Content Count</dt>
@@ -778,7 +816,9 @@ function TopTopicsRanking({
                 <button type="button" onClick={() => onOpenTopic(topic)}>
                   <span className="ranking-row__rank">{index + 1}</span>
                   <span className="ranking-row__topic">{topic.topic}</span>
-                  <span className="ranking-row__platform">{topic.source}</span>
+                  <span className="ranking-row__platform">
+                    {getTopicSourceBadge(topic)}
+                  </span>
                   <strong>{topic.score}</strong>
                   <span className="ranking-row__risk">{getRiskLabel(topic)}</span>
                 </button>
@@ -1573,6 +1613,7 @@ function TopicDetailModal({
       : !analysis.isFallback && analysis.provider === 'openai'
         ? 'OpenAI'
         : 'Mock Fallback';
+  const sourceBadge = getTopicSourceBadge(topic);
 
   return (
     <div className="topic-detail-modal" role="presentation">
@@ -1590,7 +1631,7 @@ function TopicDetailModal({
       >
         <header className="topic-detail__header">
           <div>
-            <p className="topic-detail__eyebrow">{topic.source}</p>
+            <p className="topic-detail__eyebrow">{sourceBadge}</p>
             <h2>{topic.topic}</h2>
           </div>
           <button className="topic-detail__close" type="button" onClick={onClose}>
@@ -1619,7 +1660,7 @@ function TopicDetailModal({
           </div>
           <div>
             <dt>Source</dt>
-            <dd>{topic.source}</dd>
+            <dd>{sourceBadge}</dd>
           </div>
           <div>
             <dt>Content Count</dt>

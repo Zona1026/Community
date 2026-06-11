@@ -10,7 +10,33 @@ from urllib import error, request
 
 DEFAULT_RSS_TIMEOUT_SECONDS = 10
 MAX_RSS_PARSE_BYTES = 2_000_000
+MAX_PODCAST_PARSE_BYTES = 8_000_000
+MAX_RSS_SMOKE_ITEMS = 5
 REQUIRED_RSS_ENV_VARS = ["RSS_FEED_URL"]
+RSS_SMOKE_FEED_WHITELIST = {
+    "hacker-news": {
+        "source": "Hacker News",
+        "url": "https://news.ycombinator.com/rss",
+    },
+}
+PODCAST_SMOKE_FEED_WHITELIST = {
+    "planet-money": {
+        "source": "NPR Planet Money",
+        "url": "https://feeds.npr.org/510289/podcast.xml",
+    },
+    "ted-radio-hour": {
+        "source": "TED Radio Hour",
+        "url": "https://feeds.npr.org/510298/podcast.xml",
+    },
+    "bbc-global-news": {
+        "source": "BBC Global News Podcast",
+        "url": "https://podcasts.files.bbci.co.uk/p02nq0gn.rss",
+    },
+    "lex-fridman": {
+        "source": "Lex Fridman Podcast",
+        "url": "https://lexfridman.com/feed/podcast/",
+    },
+}
 
 
 def validate_rss_env() -> dict[str, Any]:
@@ -279,6 +305,430 @@ def normalize_rss_items(
         "items": normalized_items,
         "sample_items": normalized_items[:3],
         "skipped_items": skipped_items[:3],
+    }
+
+
+def _clamp_rss_smoke_limit(limit: int) -> int:
+    return max(0, min(limit, MAX_RSS_SMOKE_ITEMS))
+
+
+def _get_smoke_feed(feed_key: str | None = None) -> dict[str, str] | None:
+    normalized_key = (feed_key or "hacker-news").strip().lower()
+    return RSS_SMOKE_FEED_WHITELIST.get(normalized_key)
+
+
+def _fetch_whitelisted_smoke_feed(feed_key: str | None = None) -> dict[str, Any]:
+    feed = _get_smoke_feed(feed_key)
+
+    if not feed:
+        return {
+            "status": "blocked",
+            "reason": "RSS smoke feed is not in the fixed whitelist.",
+            "allowedFeeds": sorted(RSS_SMOKE_FEED_WHITELIST.keys()),
+        }
+
+    feed_request = _build_rss_request(feed["url"])
+
+    try:
+        with request.urlopen(
+            feed_request,
+            timeout=_get_timeout_seconds(),
+        ) as response:
+            response_body = response.read(MAX_RSS_PARSE_BYTES + 1)
+            content_type = response.headers.get("Content-Type", "")
+            status_code = response.status
+    except error.HTTPError as rss_error:
+        return {
+            "status": "failed",
+            "reason": "RSS smoke feed returned an HTTP error.",
+            "http_status": rss_error.code,
+            "feed_source": feed["source"],
+            "feed_url": feed["url"],
+        }
+    except error.URLError as url_error:
+        return {
+            "status": "failed",
+            "reason": "RSS smoke feed could not be reached.",
+            "error": str(url_error.reason),
+            "feed_source": feed["source"],
+            "feed_url": feed["url"],
+        }
+    except TimeoutError:
+        return {
+            "status": "failed",
+            "reason": "RSS smoke feed request timed out.",
+            "feed_source": feed["source"],
+            "feed_url": feed["url"],
+        }
+
+    if len(response_body) > MAX_RSS_PARSE_BYTES:
+        return {
+            "status": "failed",
+            "http_status": status_code,
+            "content_type": content_type,
+            "reason": "RSS smoke response was too large.",
+            "max_bytes": MAX_RSS_PARSE_BYTES,
+            "feed_source": feed["source"],
+            "feed_url": feed["url"],
+        }
+
+    return {
+        "status": "ok",
+        "feed_source": feed["source"],
+        "feed_url": feed["url"],
+        "http_status": status_code,
+        "content_type": content_type,
+        "body": response_body,
+    }
+
+
+def _normalize_title_key(title: str) -> str:
+    return " ".join(title.strip().lower().split())
+
+
+def _group_smoke_normalized_items(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    groups_by_key: dict[str, dict[str, Any]] = {}
+
+    for item in items:
+        group_key = _normalize_title_key(str(item.get("title", "")))
+
+        if not group_key:
+            continue
+
+        if group_key not in groups_by_key:
+            groups_by_key[group_key] = {
+                "groupKey": group_key,
+                "representativeTitle": item["title"],
+                "itemCount": 0,
+                "items": [],
+                "reason": "Grouped by normalized exact title match.",
+            }
+
+        groups_by_key[group_key]["items"].append(item)
+        groups_by_key[group_key]["itemCount"] += 1
+
+    return list(groups_by_key.values())
+
+
+def _topic_drafts_from_smoke_groups(groups: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    drafts: list[dict[str, Any]] = []
+
+    for group in groups:
+        items = group["items"]
+
+        if not items:
+            continue
+
+        representative_item = items[0]
+        title = str(group["representativeTitle"]).strip()
+
+        if not title:
+            continue
+
+        summary = str(representative_item.get("summary") or title)
+        source_name = str(representative_item.get("source_name") or "RSS")
+        source_url = str(representative_item.get("link") or "")
+
+        drafts.append(
+            {
+                "title": title,
+                "summary": summary,
+                "score": 50,
+                "growthRate": 0,
+                "momentum": "weak",
+                "lifecycleStage": "emerging",
+                "sourceType": "rss",
+                "sourceName": source_name,
+                "sourceUrl": source_url,
+                "evidenceCount": group["itemCount"],
+                "evidenceItems": items[:3],
+                "rawGroupKey": group["groupKey"],
+            },
+        )
+
+    return drafts
+
+
+def build_rss_smoke_preview(
+    feed_key: str | None = None,
+    limit: int = MAX_RSS_SMOKE_ITEMS,
+) -> dict[str, Any]:
+    effective_limit = _clamp_rss_smoke_limit(limit)
+    fetched = _fetch_whitelisted_smoke_feed(feed_key)
+
+    if fetched["status"] != "ok":
+        return {
+            **fetched,
+            "fetched_count": 0,
+            "normalized_count": 0,
+            "grouped_topic_count": 0,
+            "skipped_count": 0,
+            "errors": [fetched.get("reason", "RSS smoke fetch failed.")],
+            "dry_run": True,
+            "batch_id": None,
+            "items": [],
+        }
+
+    try:
+        normalized_summary = normalize_rss_items(fetched["body"], fetched["feed_url"])
+    except ElementTree.ParseError as parse_error:
+        return {
+            "status": "failed",
+            "reason": "RSS smoke XML could not be parsed.",
+            "error": str(parse_error),
+            "feed_source": fetched["feed_source"],
+            "feed_url": fetched["feed_url"],
+            "fetched_count": 0,
+            "normalized_count": 0,
+            "grouped_topic_count": 0,
+            "skipped_count": 0,
+            "errors": [str(parse_error)],
+            "dry_run": True,
+            "batch_id": None,
+            "items": [],
+        }
+
+    limited_items = normalized_summary["items"][:effective_limit]
+    errors = []
+    reason = None
+
+    if normalized_summary["total_parsed_items"] == 0:
+        reason = "RSS smoke feed contained no items."
+        errors.append(reason)
+
+    result = {
+        "status": "ok",
+        "feed_source": fetched["feed_source"],
+        "feed_url": fetched["feed_url"],
+        "http_status": fetched["http_status"],
+        "content_type": fetched["content_type"],
+        "requested_limit": limit,
+        "effective_limit": effective_limit,
+        "max_items": MAX_RSS_SMOKE_ITEMS,
+        "fetched_count": normalized_summary["total_parsed_items"],
+        "normalized_count": len(limited_items),
+        "grouped_topic_count": 0,
+        "skipped_count": normalized_summary["skipped_items_count"],
+        "errors": errors,
+        "dry_run": True,
+        "batch_id": None,
+        "items": limited_items,
+        "skipped_items": normalized_summary["skipped_items"],
+    }
+
+    if reason:
+        result["reason"] = reason
+
+    return result
+
+
+def build_rss_smoke_topic_draft(
+    feed_key: str | None = None,
+    limit: int = MAX_RSS_SMOKE_ITEMS,
+) -> dict[str, Any]:
+    preview = build_rss_smoke_preview(feed_key, limit)
+
+    if preview["status"] != "ok":
+        return {
+            **preview,
+            "groups": [],
+            "topic_drafts": [],
+        }
+
+    groups = _group_smoke_normalized_items(preview["items"])
+    topic_drafts = _topic_drafts_from_smoke_groups(groups)
+
+    return {
+        **preview,
+        "grouped_topic_count": len(groups),
+        "groups": groups,
+        "topic_drafts": topic_drafts,
+    }
+
+
+def _get_podcast_smoke_feed(feed_key: str | None = None) -> dict[str, str] | None:
+    normalized_key = (feed_key or "planet-money").strip().lower()
+    return PODCAST_SMOKE_FEED_WHITELIST.get(normalized_key)
+
+
+def build_podcast_smoke_preview(
+    feed_key: str | None = None,
+    limit: int = MAX_RSS_SMOKE_ITEMS,
+) -> dict[str, Any]:
+    effective_limit = _clamp_rss_smoke_limit(limit)
+    feed = _get_podcast_smoke_feed(feed_key)
+
+    if not feed:
+        return {
+            "status": "blocked",
+            "reason": "Podcast smoke feed is not in the fixed whitelist.",
+            "allowedFeeds": sorted(PODCAST_SMOKE_FEED_WHITELIST.keys()),
+            "feed_source": None,
+            "fetched_count": 0,
+            "normalized_count": 0,
+            "grouped_topic_count": 0,
+            "skipped_count": 0,
+            "errors": ["Podcast smoke feed is not in the fixed whitelist."],
+            "dry_run": True,
+            "batch_id": None,
+            "items": [],
+        }
+
+    feed_request = _build_rss_request(feed["url"])
+
+    try:
+        with request.urlopen(
+            feed_request,
+            timeout=_get_timeout_seconds(),
+        ) as response:
+            response_body = response.read(MAX_PODCAST_PARSE_BYTES + 1)
+            content_type = response.headers.get("Content-Type", "")
+            status_code = response.status
+    except error.HTTPError as podcast_error:
+        return {
+            "status": "failed",
+            "reason": "Podcast RSS feed returned an HTTP error.",
+            "http_status": podcast_error.code,
+            "feed_source": feed["source"],
+            "feed_url": feed["url"],
+            "fetched_count": 0,
+            "normalized_count": 0,
+            "grouped_topic_count": 0,
+            "skipped_count": 0,
+            "errors": [str(podcast_error)],
+            "dry_run": True,
+            "batch_id": None,
+            "items": [],
+        }
+    except error.URLError as url_error:
+        return {
+            "status": "failed",
+            "reason": "Podcast RSS feed could not be reached.",
+            "error": str(url_error.reason),
+            "feed_source": feed["source"],
+            "feed_url": feed["url"],
+            "fetched_count": 0,
+            "normalized_count": 0,
+            "grouped_topic_count": 0,
+            "skipped_count": 0,
+            "errors": [str(url_error.reason)],
+            "dry_run": True,
+            "batch_id": None,
+            "items": [],
+        }
+    except TimeoutError:
+        return {
+            "status": "failed",
+            "reason": "Podcast RSS feed request timed out.",
+            "feed_source": feed["source"],
+            "feed_url": feed["url"],
+            "fetched_count": 0,
+            "normalized_count": 0,
+            "grouped_topic_count": 0,
+            "skipped_count": 0,
+            "errors": ["Podcast RSS feed request timed out."],
+            "dry_run": True,
+            "batch_id": None,
+            "items": [],
+        }
+
+    if len(response_body) > MAX_PODCAST_PARSE_BYTES:
+        return {
+            "status": "failed",
+            "http_status": status_code,
+            "content_type": content_type,
+            "reason": "Podcast RSS response was too large.",
+            "max_bytes": MAX_PODCAST_PARSE_BYTES,
+            "feed_source": feed["source"],
+            "feed_url": feed["url"],
+            "fetched_count": 0,
+            "normalized_count": 0,
+            "grouped_topic_count": 0,
+            "skipped_count": 0,
+            "errors": ["Podcast RSS response was too large."],
+            "dry_run": True,
+            "batch_id": None,
+            "items": [],
+        }
+
+    try:
+        normalized_summary = normalize_rss_items(response_body, feed["url"])
+    except ElementTree.ParseError as parse_error:
+        return {
+            "status": "failed",
+            "reason": "Podcast RSS XML could not be parsed.",
+            "error": str(parse_error),
+            "feed_source": feed["source"],
+            "feed_url": feed["url"],
+            "fetched_count": 0,
+            "normalized_count": 0,
+            "grouped_topic_count": 0,
+            "skipped_count": 0,
+            "errors": [str(parse_error)],
+            "dry_run": True,
+            "batch_id": None,
+            "items": [],
+        }
+
+    limited_items = normalized_summary["items"][:effective_limit]
+    errors = []
+    reason = None
+
+    if normalized_summary["total_parsed_items"] == 0:
+        reason = "Podcast RSS feed contained no episodes."
+        errors.append(reason)
+
+    result = {
+        "status": "ok",
+        "feed_source": feed["source"],
+        "feed_url": feed["url"],
+        "http_status": status_code,
+        "content_type": content_type,
+        "requested_limit": limit,
+        "effective_limit": effective_limit,
+        "max_items": MAX_RSS_SMOKE_ITEMS,
+        "fetched_count": normalized_summary["total_parsed_items"],
+        "normalized_count": len(limited_items),
+        "grouped_topic_count": 0,
+        "skipped_count": normalized_summary["skipped_items_count"],
+        "errors": errors,
+        "dry_run": True,
+        "batch_id": None,
+        "items": limited_items,
+        "skipped_items": normalized_summary["skipped_items"],
+    }
+
+    if reason:
+        result["reason"] = reason
+
+    return result
+
+
+def build_podcast_smoke_topic_draft(
+    feed_key: str | None = None,
+    limit: int = MAX_RSS_SMOKE_ITEMS,
+) -> dict[str, Any]:
+    preview = build_podcast_smoke_preview(feed_key, limit)
+
+    if preview["status"] != "ok":
+        return {
+            **preview,
+            "groups": [],
+            "topic_drafts": [],
+        }
+
+    groups = _group_smoke_normalized_items(preview["items"])
+    topic_drafts = _topic_drafts_from_smoke_groups(groups)
+
+    for draft in topic_drafts:
+        draft["sourceType"] = "podcast"
+        draft["sourceName"] = preview["feed_source"]
+
+    return {
+        **preview,
+        "grouped_topic_count": len(groups),
+        "groups": groups,
+        "topic_drafts": topic_drafts,
     }
 
 

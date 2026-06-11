@@ -83,3 +83,29 @@ ON rss_items (published_at DESC);
 
 CREATE INDEX IF NOT EXISTS idx_rss_items_link
 ON rss_items (link);
+
+CREATE TABLE IF NOT EXISTS ingestion_runs (
+    id BIGSERIAL PRIMARY KEY,
+    run_id TEXT NOT NULL UNIQUE,
+    source_type TEXT NOT NULL,
+    source_key TEXT NOT NULL,
+    status TEXT NOT NULL,
+    started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    finished_at TIMESTAMPTZ,
+    fetched_count INTEGER NOT NULL DEFAULT 0,
+    normalized_count INTEGER NOT NULL DEFAULT 0,
+    grouped_topic_count INTEGER NOT NULL DEFAULT 0,
+    inserted_count INTEGER NOT NULL DEFAULT 0,
+    updated_count INTEGER NOT NULL DEFAULT 0,
+    skipped_count INTEGER NOT NULL DEFAULT 0,
+    error_count INTEGER NOT NULL DEFAULT 0,
+    error_message TEXT NOT NULL DEFAULT '',
+    dry_run BOOLEAN NOT NULL DEFAULT TRUE,
+    metadata JSONB NOT NULL DEFAULT '{}'::jsonb
+);
+
+CREATE INDEX IF NOT EXISTS idx_ingestion_runs_started_at
+ON ingestion_runs (started_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_ingestion_runs_source
+ON ingestion_runs (source_type, source_key, started_at DESC);
