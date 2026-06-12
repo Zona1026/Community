@@ -849,18 +849,20 @@ function InspirationIdeasPanel({ topics }: { topics: DashboardTopic[] }) {
                 </div>
               </div>
 
-              {topic.inspirationIdeas.length > 0 ? (
-                <div className="signal-card__panel signal-card__panel--ideas">
-                  <div className="signal-card__section signal-card__subcard">
-                    <h3>靈感</h3>
+              <div className="signal-card__panel signal-card__panel--ideas">
+                <div className="signal-card__section signal-card__subcard">
+                  <h3>靈感</h3>
+                  {topic.inspirationIdeas.length > 0 ? (
                     <ul>
                       {topic.inspirationIdeas.map((idea) => (
                         <li key={idea}>{idea}</li>
                       ))}
                     </ul>
-                  </div>
+                  ) : (
+                    <p>目前尚無靈感建議。</p>
+                  )}
                 </div>
-              ) : null}
+              </div>
             </div>
           </article>
         ))}
