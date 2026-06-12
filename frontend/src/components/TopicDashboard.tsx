@@ -819,6 +819,8 @@ function InspirationIdeasPanel({ topics }: { topics: DashboardTopic[] }) {
     return null;
   }
 
+  const visibleTopics = topics.slice(0, 3);
+
   return (
     <section className="dashboard-section" aria-label="內容靈感總覽">
       <div className="page-section__header">
@@ -827,7 +829,7 @@ function InspirationIdeasPanel({ topics }: { topics: DashboardTopic[] }) {
       </div>
 
       <div className="signal-list">
-        {topics.map((topic) => (
+        {visibleTopics.map((topic) => (
           <article className="signal-card" key={topic.id}>
             <header className="signal-card__header">
               <div>
