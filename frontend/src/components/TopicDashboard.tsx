@@ -116,11 +116,6 @@ interface PlatformTopicGroup {
   topics: DashboardTopic[];
 }
 
-interface AiObservation {
-  title: string;
-  description: string;
-}
-
 const AI_TONES: AiTone[] = ['專業', '輕鬆', '犀利'];
 const POST_ANGLES: PostAngle[] = ['教學', '觀點', '懶人包'];
 const COPY_HISTORY_STORAGE_KEY = 'trend-radar-copy-history';
@@ -635,50 +630,6 @@ function formatTopicSourceSummary(analysis: TopicSourceAnalysis): string {
   return `此話題目前主要集中在 ${analysis.primaryPlatform}，適合先觀察該平台的留言與互動語境。`;
 }
 
-function createAiObservations(
-  topics: DashboardTopic[],
-  industryTopics: DashboardTopic[],
-  userKeywordTopics: DashboardTopic[],
-): AiObservation[] {
-  if (topics.length === 0) {
-    return [
-      {
-        title: '尚無可整理資料',
-        description: '目前沒有話題可產生 Dashboard 觀察，請確認資料來源。',
-      },
-    ];
-  }
-
-  const topTopic = [...topics].sort((left, right) => right.score - left.score)[0];
-  const riskTopics = topics.filter(hasRiskSignal);
-  const focusedTopics = Array.from(
-    new Set([...industryTopics, ...userKeywordTopics].map((topic) => topic.id)),
-  );
-
-  return [
-    {
-      title: '最高熱度話題',
-      description: `${topTopic.topic} 目前分數 ${topTopic.score}，動能為${getMomentumLabel(
-        topTopic.momentum,
-      )}。${topTopic.insight}`,
-    },
-    {
-      title: '設定命中狀態',
-      description:
-        focusedTopics.length > 0
-          ? `產業與自訂關鍵字目前共命中 ${focusedTopics.length} 個話題，可優先用於 Demo 展示。`
-          : '目前產業與自訂關鍵字沒有命中話題，可至設定頁調整篩選條件。',
-    },
-    {
-      title: '風險觀察',
-      description:
-        riskTopics.length > 0
-          ? `${riskTopics.length} 個話題包含風險或爭議字詞，發文前建議人工確認。`
-          : '目前未偵測到明顯風險字詞，仍建議保留人工檢查。',
-    },
-  ];
-}
-
 function topicsFromFavoriteIds(
   topics: DashboardTopic[],
   favoriteTopicIds: string[],
@@ -863,6 +814,61 @@ function GroupedTopicsSection({
   );
 }
 
+function InspirationIdeasPanel({ topics }: { topics: DashboardTopic[] }) {
+  if (topics.length === 0) {
+    return null;
+  }
+
+  return (
+    <section className="dashboard-section" aria-label="內容靈感總覽">
+      <div className="page-section__header">
+        <p className="page-section__eyebrow">Inspiration Ideas</p>
+        <h2>內容靈感總覽</h2>
+      </div>
+
+      <div className="signal-list">
+        {topics.map((topic) => (
+          <article className="signal-card" key={topic.id}>
+            <header className="signal-card__header">
+              <div>
+                <p className="signal-card__label">內容靈感</p>
+                <h2>{topic.topic}</h2>
+              </div>
+            </header>
+
+            <div className="signal-card__layout">
+              <div className="signal-card__panel signal-card__panel--summary">
+                <div className="signal-card__section signal-card__subcard">
+                  <h3>摘要</h3>
+                  <p>{topic.summary}</p>
+                </div>
+
+                <div className="signal-card__section signal-card__subcard">
+                  <h3>洞察</h3>
+                  <p>{topic.insight}</p>
+                </div>
+              </div>
+
+              {topic.inspirationIdeas.length > 0 ? (
+                <div className="signal-card__panel signal-card__panel--ideas">
+                  <div className="signal-card__section signal-card__subcard">
+                    <h3>靈感</h3>
+                    <ul>
+                      {topic.inspirationIdeas.map((idea) => (
+                        <li key={idea}>{idea}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function FavoriteTopicsSection({
   topics,
   favoriteTopicIds,
@@ -978,29 +984,6 @@ function TopTopicsRanking({
         </article>
       )}
     </article>
-  );
-}
-
-function AiObservationPanel({
-  observations,
-}: {
-  observations: AiObservation[];
-}) {
-  return (
-    <section className="dashboard-section" aria-label="內容靈感總覽">
-      <div className="page-section__header">
-        <p className="page-section__eyebrow">Content Ideas</p>
-        <h2>內容靈感總覽</h2>
-      </div>
-      <div className="observation-grid">
-        {observations.map((item) => (
-          <article className="observation-card" key={item.title}>
-            <h3>{item.title}</h3>
-            <p>{item.description}</p>
-          </article>
-        ))}
-      </div>
-    </section>
   );
 }
 
@@ -2101,16 +2084,6 @@ export function TopicDashboard({
     () => createSourceStats(topicsData.allTopics),
     [topicsData.allTopics],
   );
-  const observations = useMemo(
-    () =>
-      createAiObservations(
-        topicsData.allTopics,
-        displayedIndustryTopics,
-        displayedUserKeywordTopics,
-      ),
-    [topicsData.allTopics, displayedIndustryTopics, displayedUserKeywordTopics],
-  );
-
   async function handleToggleFavorite(topic: DashboardTopic) {
     const isFavorite = favoritesState.topicIds.includes(topic.id);
     const nextState = isFavorite
@@ -2186,7 +2159,7 @@ export function TopicDashboard({
           onToggleFavorite={handleToggleFavorite}
         />
 
-        <AiObservationPanel observations={observations} />
+        <InspirationIdeasPanel topics={topicsData.allTopics} />
 
         <DashboardSection
           title="自訂關鍵字熱門話題"
