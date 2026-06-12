@@ -2080,6 +2080,10 @@ export function TopicDashboard({
     () => createPlatformTopicGroups(topicsData.allTopics, 3),
     [topicsData.allTopics],
   );
+  const topRankingTopics = useMemo(
+    () => topicsData.allTopics,
+    [topicsData.allTopics],
+  );
 
   const favoriteTopics = useMemo(
     () => topicsFromFavoriteIds(topicsData.allTopics, favoritesState.topicIds),
@@ -2222,7 +2226,7 @@ export function TopicDashboard({
               favoriteCount={favoritesState.topicIds.length}
             />
             <TopTopicsRanking
-              topics={topicsData.allTopics}
+              topics={topRankingTopics}
               favoriteTopicIds={favoritesState.topicIds}
               onOpenTopic={setSelectedTopic}
               onToggleFavorite={handleToggleFavorite}
