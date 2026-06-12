@@ -11,9 +11,8 @@ export default async function HomePage() {
           <p className="page__eyebrow">Trend Radar Phase 1 Demo</p>
           <h1>AI 內容趨勢雷達</h1>
           <p className="page__description">
-            使用 mockData、Threads / Dcard JSON sample 與 Reddit fallback
-            資料，展示多來源資料整合、熱門話題分類、AI mock / OpenAI
-            adapter 分析與文案生成流程。
+            整合多來源趨勢訊號，集中展示熱門話題、內容靈感、來源分析與
+            AI mock / OpenAI adapter 分析流程。
           </p>
         </header>
 
