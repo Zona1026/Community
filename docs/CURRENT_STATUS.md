@@ -509,3 +509,34 @@ python -c "import app; client=app.app.test_client(); print(client.get('/health')
 - `/health`, `/db/status`, and `/api/topics` do not require the admin token.
 - `ALLOW_DEV_ENDPOINTS=false` remains the production default.
 - Render Cron Job remains not enabled.
+
+## 2026-06-12 Status Note - Render Manual Deployment Checklist
+
+- Added Render Manual Deployment Checklist documentation only.
+- No code was changed for this checklist step.
+- No Render deployment was performed.
+- No Render Cron Job was created or enabled.
+- Backend Render Web Service settings documented:
+  - Root Directory: `backend`
+  - Build Command: `pip install -r requirements.txt`
+  - Start Command: `gunicorn app:app`
+- Backend required env documented: `DATABASE_URL`, `ADMIN_API_TOKEN`, and `ALLOW_DEV_ENDPOINTS=false`.
+- Backend acceptance order documented: `/health`, `/db/status`, `/api/topics`, `/admin/ingestion-health` without token expecting 401, and `/admin/ingestion-health` with token expecting 200.
+- Frontend Render Web Service settings documented:
+  - Root Directory: `frontend`
+  - Build Command: `npm ci && npm run build`
+  - Start Command: `npm run start`
+- Frontend required env documented: `BACKEND_API_URL=<Render backend URL>`.
+- Frontend acceptance notes documented: Dashboard opens, `/api/topics` can read backend topics, and backend cold-start fallback behavior is acceptable.
+- Aiven PostgreSQL checks documented: `DATABASE_URL` points to Aiven, SSL is correct, Render backend can connect, and Render Free Postgres is not used as the long-term database.
+- Render Cron Job remains a follow-up step for RSS and Podcast only.
+- Deployment notes documented: Free Web Service may sleep, first request can be slower, `/admin/*` requires token, and `ALLOW_DEV_ENDPOINTS` must not be `true`.
+
+## 2026-06-12 Status Note - Render psycopg Binary Build Fix
+
+- Fixed Render backend build dependency issue.
+- Previous requirement: `psycopg[binary]==3.2.3`.
+- Render resolved the binary extra to `psycopg-binary==3.2.3`, but no matching distribution was available for the Render build environment.
+- Updated requirement: `psycopg[binary]==3.2.13`.
+- Kept Psycopg 3 because backend code imports `psycopg`; did not switch to `psycopg2-binary`.
+- Before redeploying Render backend, commit and push the updated `backend/requirements.txt`, then trigger a fresh Render deploy.

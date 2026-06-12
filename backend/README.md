@@ -386,6 +386,8 @@ Build Command: pip install -r requirements.txt
 Start Command: gunicorn app:app
 ```
 
+The backend uses Psycopg 3 with the binary extra: `psycopg[binary]==3.2.13`. Keep this on Psycopg 3 because the code imports `psycopg`.
+
 Required backend environment variables:
 
 ```text
@@ -591,3 +593,73 @@ Not included in this draft:
 - Do not use `/dev/*` as the scheduler.
 
 Next step after this draft: enable the host-level scheduler in the deployment environment and observe it for 24-48 hours using `ingestion_runs` and `/admin/ingestion-health`.
+
+## Render Manual Deployment Checklist
+
+This checklist is for manual Render deployment preparation only. Do not deploy, enable Render Cron Job, or create a scheduler from this checklist step.
+
+Backend Render Web Service:
+
+```text
+Root Directory: backend
+Build Command: pip install -r requirements.txt
+Start Command: gunicorn app:app
+```
+
+Required backend environment variables:
+
+```text
+DATABASE_URL=<Aiven PostgreSQL URL>
+ADMIN_API_TOKEN=<strong secret token>
+ALLOW_DEV_ENDPOINTS=false
+```
+
+Backend acceptance order:
+
+```text
+GET /health
+GET /db/status
+GET /api/topics
+GET /admin/ingestion-health              # without token, expect HTTP 401
+GET /admin/ingestion-health              # with admin token, expect HTTP 200
+```
+
+Frontend Render Web Service:
+
+```text
+Root Directory: frontend
+Build Command: npm ci && npm run build
+Start Command: npm run start
+```
+
+Required frontend environment variables:
+
+```text
+BACKEND_API_URL=<Render backend URL>
+```
+
+Frontend acceptance order:
+
+- Dashboard opens successfully.
+- Frontend `/api/topics` can read backend topics through `BACKEND_API_URL`.
+- Backend cold-start fallback behavior is acceptable during Render free web service wake-up.
+
+Aiven PostgreSQL checks:
+
+- `DATABASE_URL` points to Aiven.
+- SSL settings are correct for Aiven, such as `sslmode=require` when required.
+- Render backend can connect to the database.
+- Do not use Render Free Postgres as the long-term production database.
+
+Render Cron Job:
+
+- Do not enable Render Cron Job in this step.
+- RSS and Podcast Cron Jobs remain follow-up work only.
+- Do not use `/dev/*` as a scheduler.
+
+Post-deployment notes:
+
+- Render Free Web Service may sleep when idle.
+- First request after sleep may be slower.
+- `/admin/*` must not be publicly accessible without a valid token.
+- `ALLOW_DEV_ENDPOINTS` must not be `true` in production.
