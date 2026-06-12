@@ -111,6 +111,11 @@ interface TopicSourceAnalysis {
   summary: string;
 }
 
+interface PlatformTopicGroup {
+  platform: PublicPlatform;
+  topics: DashboardTopic[];
+}
+
 interface AiObservation {
   title: string;
   description: string;
@@ -327,6 +332,18 @@ function getTopicSourceBadge(topic: DashboardTopic): string {
   }
 
   return primarySource || 'Unknown';
+}
+
+function createPlatformTopicGroups(
+  topics: DashboardTopic[],
+  limitPerPlatform: number,
+): PlatformTopicGroup[] {
+  return PUBLIC_PLATFORM_ORDER.map((platform) => ({
+    platform,
+    topics: topics
+      .filter((topic) => getTopicPublicPlatforms(topic).includes(platform))
+      .slice(0, limitPerPlatform),
+  })).filter((group) => group.topics.length > 0);
 }
 
 function matchesKeywords(topic: DashboardTopic, keywords: string[]): boolean {
@@ -778,6 +795,63 @@ function DashboardSection({
             />
           ))}
         </div>
+      ) : (
+        <article className="topic-card topic-card--empty">
+          <p className="topic-card__source">Empty State</p>
+          <h3>{emptyTitle}</h3>
+          <p className="topic-card__summary">{emptyDescription}</p>
+        </article>
+      )}
+    </section>
+  );
+}
+
+function GroupedTopicsSection({
+  title,
+  eyebrow,
+  emptyTitle,
+  emptyDescription,
+  groups,
+  favoriteTopicIds,
+  onOpenTopic,
+  onToggleFavorite,
+}: {
+  title: string;
+  eyebrow: string;
+  emptyTitle: string;
+  emptyDescription: string;
+  groups: PlatformTopicGroup[];
+  favoriteTopicIds: string[];
+  onOpenTopic: (topic: DashboardTopic) => void;
+  onToggleFavorite: (topic: DashboardTopic) => void;
+}) {
+  return (
+    <section className="dashboard-section" aria-label={title}>
+      <div className="page-section__header">
+        <p className="page-section__eyebrow">{eyebrow}</p>
+        <h2>{title}</h2>
+      </div>
+
+      {groups.length > 0 ? (
+        groups.map((group) => (
+          <article className="dashboard-data-card" key={group.platform}>
+            <div className="dashboard-data-card__header">
+              <p className="page-section__eyebrow">{group.platform}</p>
+              <h3>{group.platform}</h3>
+            </div>
+            <div className="topic-card-list">
+              {group.topics.map((topic) => (
+                <TopicCard
+                  key={`${group.platform}-${topic.id}`}
+                  topic={topic}
+                  isFavorite={favoriteTopicIds.includes(topic.id)}
+                  onOpen={onOpenTopic}
+                  onToggleFavorite={onToggleFavorite}
+                />
+              ))}
+            </div>
+          </article>
+        ))
       ) : (
         <article className="topic-card topic-card--empty">
           <p className="topic-card__source">Empty State</p>
@@ -1998,6 +2072,14 @@ export function TopicDashboard({
       ),
     [topicsData.allTopics, userSettings.keywords],
   );
+  const displayedUserKeywordPreviewTopics = useMemo(
+    () => displayedUserKeywordTopics.slice(0, 6),
+    [displayedUserKeywordTopics],
+  );
+  const groupedAllTopics = useMemo(
+    () => createPlatformTopicGroups(topicsData.allTopics, 3),
+    [topicsData.allTopics],
+  );
 
   const favoriteTopics = useMemo(
     () => topicsFromFavoriteIds(topicsData.allTopics, favoritesState.topicIds),
@@ -2107,7 +2189,7 @@ export function TopicDashboard({
           eyebrow="User Keywords"
           emptyTitle="尚無符合自訂關鍵字的熱門話題"
           emptyDescription="可至設定頁新增關鍵字，或檢查目前展示資料是否包含對應內容。"
-          topics={displayedUserKeywordTopics}
+          topics={displayedUserKeywordPreviewTopics}
           favoriteTopicIds={favoritesState.topicIds}
           onOpenTopic={setSelectedTopic}
           onToggleFavorite={handleToggleFavorite}
@@ -2149,12 +2231,12 @@ export function TopicDashboard({
           </div>
         </section>
 
-        <DashboardSection
+        <GroupedTopicsSection
           title="所有熱門話題"
           eyebrow="All Topics"
           emptyTitle="尚無熱門話題"
           emptyDescription="請確認 mockData、JSON sample 或 API 是否已提供資料。"
-          topics={topicsData.allTopics}
+          groups={groupedAllTopics}
           favoriteTopicIds={favoritesState.topicIds}
           onOpenTopic={setSelectedTopic}
           onToggleFavorite={handleToggleFavorite}
