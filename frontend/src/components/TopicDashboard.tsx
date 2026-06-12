@@ -1986,12 +1986,9 @@ export function TopicDashboard({
     return topicsData.allTopics.filter((topic) => matchesKeywords(topic, keywords));
   }, [topicsData.allTopics, userSettings.industry]);
   const featuredIndustryTopics = useMemo(() => {
-    const topics =
-      displayedIndustryTopics.length > 0
-        ? displayedIndustryTopics
-        : topicsData.allTopics;
-
-    return topics.slice(0, 6);
+    return displayedIndustryTopics.length > 0
+      ? displayedIndustryTopics
+      : topicsData.allTopics;
   }, [displayedIndustryTopics, topicsData.allTopics]);
 
   const displayedUserKeywordTopics = useMemo(
@@ -2097,7 +2094,7 @@ export function TopicDashboard({
           eyebrow="Industry Match"
           emptyTitle="尚無符合產業的熱門話題"
           emptyDescription="可至設定頁調整產業類別，或確認資料中是否包含相關關鍵字。"
-          topics={featuredIndustryTopics}
+          topics={featuredIndustryTopics.slice(0, 6)}
           favoriteTopicIds={favoritesState.topicIds}
           onOpenTopic={setSelectedTopic}
           onToggleFavorite={handleToggleFavorite}
