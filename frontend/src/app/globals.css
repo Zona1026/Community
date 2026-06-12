@@ -199,6 +199,26 @@ h1 {
   gap: 20px;
 }
 
+.dashboard-data-card {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid #cbd6e2;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.dashboard-data-card__header {
+  display: grid;
+  gap: 4px;
+}
+
+.dashboard-data-card__header h3 {
+  margin: 0;
+  color: #17202a;
+  font-size: 1.05rem;
+}
+
 .ranking-list {
   display: grid;
   gap: 10px;

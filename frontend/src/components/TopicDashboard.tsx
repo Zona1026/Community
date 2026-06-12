@@ -830,10 +830,10 @@ function TrendOverview({
   ];
 
   return (
-    <section className="dashboard-section" aria-label="趨勢總覽">
-      <div className="page-section__header">
+    <article className="dashboard-data-card" aria-label="趨勢總覽">
+      <div className="dashboard-data-card__header">
         <p className="page-section__eyebrow">Overview</p>
-        <h2>趨勢總覽</h2>
+        <h3>趨勢總覽</h3>
       </div>
       <div className="dashboard-metric-grid dashboard-metric-grid--five">
         {items.map((item) => (
@@ -843,7 +843,7 @@ function TrendOverview({
           </article>
         ))}
       </div>
-    </section>
+    </article>
   );
 }
 
@@ -863,10 +863,10 @@ function TopTopicsRanking({
     .slice(0, 5);
 
   return (
-    <section className="dashboard-section" aria-label="熱門排行">
-      <div className="page-section__header">
+    <article className="dashboard-data-card" aria-label="熱門排行">
+      <div className="dashboard-data-card__header">
         <p className="page-section__eyebrow">Top Ranking</p>
-        <h2>熱門排行</h2>
+        <h3>熱門排行</h3>
       </div>
 
       {topTopics.length > 0 ? (
@@ -903,7 +903,7 @@ function TopTopicsRanking({
           <p>目前沒有可排序的熱門話題。</p>
         </article>
       )}
-    </section>
+    </article>
   );
 }
 
@@ -938,10 +938,10 @@ function PlatformDistribution({
   const total = items.reduce((sum, item) => sum + item.count, 0);
 
   return (
-    <section className="dashboard-section" aria-label="平台分布">
-      <div className="page-section__header">
+    <article className="dashboard-data-card" aria-label="平台分布">
+      <div className="dashboard-data-card__header">
         <p className="page-section__eyebrow">Platform Mix</p>
-        <h2>平台分布</h2>
+        <h3>平台分布</h3>
       </div>
 
       {items.length > 0 ? (
@@ -968,7 +968,7 @@ function PlatformDistribution({
           <p>資料不足時會保留空狀態，不影響其他 Dashboard 區塊。</p>
         </article>
       )}
-    </section>
+    </article>
   );
 }
 
