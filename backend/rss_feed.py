@@ -7,6 +7,8 @@ from typing import Any
 from xml.etree import ElementTree
 from urllib import error, request
 
+from text_utils import clean_html_to_text
+
 
 DEFAULT_RSS_TIMEOUT_SECONDS = 10
 MAX_RSS_PARSE_BYTES = 2_000_000
@@ -243,6 +245,8 @@ def normalize_rss_items(
         title = parsed_item["title"]
         link = parsed_item["link"]
         item_guid = parsed_item["guid"]
+        raw_summary = parsed_item["summary"]
+        clean_summary = clean_html_to_text(raw_summary) or title
         guid_was_fallback = False
 
         if not item_guid and link:
@@ -281,7 +285,7 @@ def normalize_rss_items(
                 "author": parsed_item["author"],
                 "published_at": parsed_item["published_at"],
                 "fetched_at": normalized_fetched_at,
-                "summary": parsed_item["summary"],
+                "summary": clean_summary,
                 "raw_json": {
                     "guid": parsed_item["guid"],
                     "guid_was_fallback": guid_was_fallback,
@@ -289,7 +293,8 @@ def normalize_rss_items(
                     "title": title,
                     "link": link,
                     "author": parsed_item["author"],
-                    "summary": parsed_item["summary"],
+                    "summary": clean_summary,
+                    "raw_summary": raw_summary,
                 },
             },
         )
@@ -425,7 +430,7 @@ def _topic_drafts_from_smoke_groups(groups: list[dict[str, Any]]) -> list[dict[s
         if not title:
             continue
 
-        summary = str(representative_item.get("summary") or title)
+        summary = clean_html_to_text(representative_item.get("summary")) or title
         source_name = str(representative_item.get("source_name") or "RSS")
         source_url = str(representative_item.get("link") or "")
 

@@ -420,6 +420,18 @@ GET /api/topics
 
 Render Cron Job is not enabled yet. The backend Web Service readiness step only prepares production startup and read-only admin endpoint protection.
 
+## HTML-to-text Summary Sanitizer
+
+RSS and Podcast feeds may include HTML in item descriptions, such as `<br>`, `<a>`, `<ul>`, and `<li>`. The backend uses `clean_html_to_text()` in `backend/text_utils.py` to convert these descriptions into plain text before they reach Dashboard topic cards.
+
+Applied paths:
+
+- RSS / Podcast normalization cleans item `summary` for future ingestion.
+- Topic draft and payload generation cleans `summary` before topic upsert.
+- `/api/topics` read path cleans `summary` before returning topics, so existing database rows with old HTML summaries render as clean text without deleting or rebuilding topics.
+
+The frontend still renders summaries as plain React text and does not use `dangerouslySetInnerHTML`.
+
 ## Manual Scheduled Ingestion Runner MVP
 
 The manual scheduled ingestion runner is the first non-smoke ingestion entrypoint. It does not use `/dev/*` endpoints, does not write `rss_smoke_test` or `podcast_smoke_test` topics, and does not enable a timer, cron job, or background worker yet.

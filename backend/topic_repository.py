@@ -5,6 +5,7 @@ from typing import Any
 
 from db import get_connection, initialize_database, is_database_configured
 from mock_topics import get_mock_topics
+from text_utils import clean_html_to_text
 
 
 def _safe_int(value: Any, fallback: int = 0) -> int:
@@ -42,6 +43,11 @@ def _decode_payload(value: Any) -> dict[str, Any]:
 def _topic_from_row(row: Any) -> dict[str, Any]:
     topic_key, title, summary, score, source, payload = row
     topic_payload = _decode_payload(payload)
+    clean_summary = (
+        clean_html_to_text(topic_payload.get("summary"))
+        or clean_html_to_text(summary)
+        or str(title)
+    )
 
     return {
         "id": str(topic_payload.get("id") or topic_key),
@@ -56,7 +62,7 @@ def _topic_from_row(row: Any) -> dict[str, Any]:
         in {"emerging", "growing", "mainstream", "declining"}
         else "emerging",
         "scoreHistory": _safe_list(topic_payload.get("scoreHistory")),
-        "summary": str(topic_payload.get("summary") or summary),
+        "summary": clean_summary,
         "insight": str(topic_payload.get("insight") or ""),
         "source": str(topic_payload.get("source") or source),
         "contentCount": _safe_int(topic_payload.get("contentCount"), 1),
@@ -66,7 +72,7 @@ def _topic_from_row(row: Any) -> dict[str, Any]:
         "topicTags": _safe_list(topic_payload.get("topicTags")),
         "searchText": str(
             topic_payload.get("searchText")
-            or f"{title} {summary} {source}".lower()
+            or f"{title} {clean_summary} {source}".lower()
         ),
     }
 

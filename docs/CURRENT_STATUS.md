@@ -540,3 +540,13 @@ python -c "import app; client=app.app.test_client(); print(client.get('/health')
 - Updated requirement: `psycopg[binary]==3.2.13`.
 - Kept Psycopg 3 because backend code imports `psycopg`; did not switch to `psycopg2-binary`.
 - Before redeploying Render backend, commit and push the updated `backend/requirements.txt`, then trigger a fresh Render deploy.
+
+## 2026-06-12 Status Note - HTML-to-text Summary Sanitizer
+
+- Completed: minimum backend HTML-to-text sanitizer for RSS / Podcast topic summaries.
+- New helper: `backend/text_utils.py`, function `clean_html_to_text(value, max_length=500)`.
+- Sanitizer behavior: decodes HTML entities, converts common block tags to spacing, removes HTML tags, compresses whitespace, removes residual markup, and truncates long summaries.
+- Ingestion path: RSS / Podcast normalized item `summary` is cleaned for future writes.
+- Topic draft / payload path: topic summaries are cleaned again before topic upsert.
+- API read fallback: `/api/topics` cleans summary before returning topics, so existing rows with old HTML summaries do not need manual deletion or rebuild.
+- Frontend rendering remains plain text; `dangerouslySetInnerHTML` is not used.

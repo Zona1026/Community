@@ -7,6 +7,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from text_utils import clean_html_to_text
+
 
 BASE_DIR = Path(__file__).resolve().parent
 SCHEMA_PATH = BASE_DIR / "schema.sql"
@@ -1367,11 +1369,13 @@ def _topic_payload_from_grouped_payload(
     source_name = grouped_payload.get("sourceName") or "RSS"
     source_url = grouped_payload.get("sourceUrl") or ""
     evidence_count = _safe_int(grouped_payload.get("evidenceCount"), 0)
+    title = str(grouped_payload.get("title") or "")
+    summary = clean_html_to_text(grouped_payload.get("summary")) or title
 
     return {
         "id": topic_key,
-        "topic": grouped_payload.get("title", ""),
-        "summary": grouped_payload.get("summary", ""),
+        "topic": title,
+        "summary": summary,
         "score": _safe_int(grouped_payload.get("score"), 50),
         "growthRate": _safe_int(grouped_payload.get("growthRate"), 0),
         "momentum": grouped_payload.get("momentum") or "weak",
@@ -1391,8 +1395,8 @@ def _topic_payload_from_grouped_payload(
         "topicTags": ["rss"],
         "searchText": " ".join(
             [
-                str(grouped_payload.get("title", "")),
-                str(grouped_payload.get("summary", "")),
+                title,
+                summary,
                 str(source_name),
             ],
         ).lower(),
@@ -1872,7 +1876,7 @@ def run_scheduled_ingestion(
                         (
                             topic_key,
                             title,
-                            str(draft.get("summary") or ""),
+                            clean_html_to_text(draft.get("summary")) or title,
                             _safe_int(draft.get("score"), 50),
                             str(draft.get("sourceName") or _scheduled_source_label(normalized_source_type)),
                             json.dumps(topic_payload, ensure_ascii=False),
@@ -2582,7 +2586,8 @@ def run_rss_to_topics_ingestion(limit: int = 3) -> dict[str, Any]:
                         (
                             topic_key,
                             title,
-                            str(payload.get("summary") or ""),
+                            clean_html_to_text(payload.get("summary"))
+                            or str(payload.get("title") or ""),
                             _safe_int(payload.get("score"), 50),
                             str(payload.get("sourceName") or "RSS"),
                             json.dumps(topic_payload, ensure_ascii=False),
@@ -2906,7 +2911,8 @@ def upsert_rss_smoke_topic_drafts(
                         (
                             topic_key,
                             title,
-                            str(draft.get("summary") or ""),
+                            clean_html_to_text(draft.get("summary"))
+                            or str(draft.get("title") or ""),
                             _safe_int(draft.get("score"), 50),
                             "rss_smoke_test",
                             json.dumps(topic_payload, ensure_ascii=False),
@@ -3171,7 +3177,8 @@ def upsert_dcard_smoke_topic_drafts(
                         (
                             topic_key,
                             title,
-                            str(draft.get("summary") or ""),
+                            clean_html_to_text(draft.get("summary"))
+                            or str(draft.get("title") or ""),
                             _safe_int(draft.get("score"), 50),
                             "dcard_smoke_test",
                             json.dumps(topic_payload, ensure_ascii=False),
@@ -3436,7 +3443,8 @@ def upsert_podcast_smoke_topic_drafts(
                         (
                             topic_key,
                             title,
-                            str(draft.get("summary") or ""),
+                            clean_html_to_text(draft.get("summary"))
+                            or str(draft.get("title") or ""),
                             _safe_int(draft.get("score"), 50),
                             "podcast_smoke_test",
                             json.dumps(topic_payload, ensure_ascii=False),
