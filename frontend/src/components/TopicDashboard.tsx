@@ -819,7 +819,7 @@ function InspirationIdeasPanel({ topics }: { topics: DashboardTopic[] }) {
     return null;
   }
 
-  const visibleTopics = topics.slice(0, 3);
+  const featuredTopic = topics[0];
 
   return (
     <section className="dashboard-section" aria-label="內容靈感總覽">
@@ -829,45 +829,43 @@ function InspirationIdeasPanel({ topics }: { topics: DashboardTopic[] }) {
       </div>
 
       <div className="signal-list">
-        {visibleTopics.map((topic) => (
-          <article className="signal-card" key={topic.id}>
-            <header className="signal-card__header">
-              <div>
-                <p className="signal-card__label">內容靈感</p>
-                <h2>{topic.topic}</h2>
-              </div>
-            </header>
+        <article className="signal-card" key={featuredTopic.id}>
+          <header className="signal-card__header">
+            <div>
+              <p className="signal-card__label">內容靈感</p>
+              <h2>{featuredTopic.topic}</h2>
+            </div>
+          </header>
 
-            <div className="signal-card__layout">
-              <div className="signal-card__panel signal-card__panel--summary">
-                <div className="signal-card__section signal-card__subcard">
-                  <h3>摘要</h3>
-                  <p>{topic.summary}</p>
-                </div>
-
-                <div className="signal-card__section signal-card__subcard">
-                  <h3>洞察</h3>
-                  <p>{topic.insight}</p>
-                </div>
+          <div className="signal-card__layout">
+            <div className="signal-card__panel signal-card__panel--summary">
+              <div className="signal-card__section signal-card__subcard">
+                <h3>摘要</h3>
+                <p>{featuredTopic.summary}</p>
               </div>
 
-              <div className="signal-card__panel signal-card__panel--ideas">
-                <div className="signal-card__section signal-card__subcard">
-                  <h3>靈感</h3>
-                  {topic.inspirationIdeas.length > 0 ? (
-                    <ul>
-                      {topic.inspirationIdeas.map((idea) => (
-                        <li key={idea}>{idea}</li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p>目前尚無靈感建議。</p>
-                  )}
-                </div>
+              <div className="signal-card__section signal-card__subcard">
+                <h3>洞察</h3>
+                <p>{featuredTopic.insight}</p>
               </div>
             </div>
-          </article>
-        ))}
+
+            <div className="signal-card__panel signal-card__panel--ideas">
+              <div className="signal-card__section signal-card__subcard">
+                <h3>靈感</h3>
+                {featuredTopic.inspirationIdeas.length > 0 ? (
+                  <ul>
+                    {featuredTopic.inspirationIdeas.map((idea) => (
+                      <li key={idea}>{idea}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p>目前尚無靈感建議。</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </article>
       </div>
     </section>
   );
