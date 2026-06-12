@@ -1054,7 +1054,6 @@ function SourceAnalysisPanel({
         <p className="page-section__description">
           比較 Threads、Dcard、Reddit 等平台對話題熱度與內容量的貢獻。
         </p>
-        <h2>來源分析</h2>
       </div>
 
       {stats.length > 0 ? (
