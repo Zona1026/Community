@@ -826,45 +826,31 @@ function InspirationIdeasPanel({ topics }: { topics: DashboardTopic[] }) {
       <div className="page-section__header">
         <p className="page-section__eyebrow">Inspiration Ideas</p>
         <h2>內容靈感總覽</h2>
+        <p className="page-section__description">{featuredTopic.topic}</p>
       </div>
 
-      <div className="signal-list">
-        <article className="signal-card" key={featuredTopic.id}>
-          <header className="signal-card__header">
-            <div>
-              <p className="signal-card__label">內容靈感</p>
-              <h2>{featuredTopic.topic}</h2>
-            </div>
-          </header>
+      <div className="signal-list signal-list--three">
+        <article className="signal-card signal-card--compact">
+          <h3>摘要</h3>
+          <p>{featuredTopic.summary}</p>
+        </article>
 
-          <div className="signal-card__layout">
-            <div className="signal-card__panel signal-card__panel--summary">
-              <div className="signal-card__section signal-card__subcard">
-                <h3>摘要</h3>
-                <p>{featuredTopic.summary}</p>
-              </div>
+        <article className="signal-card signal-card--compact">
+          <h3>洞察</h3>
+          <p>{featuredTopic.insight}</p>
+        </article>
 
-              <div className="signal-card__section signal-card__subcard">
-                <h3>洞察</h3>
-                <p>{featuredTopic.insight}</p>
-              </div>
-            </div>
-
-            <div className="signal-card__panel signal-card__panel--ideas">
-              <div className="signal-card__section signal-card__subcard">
-                <h3>靈感</h3>
-                {featuredTopic.inspirationIdeas.length > 0 ? (
-                  <ul>
-                    {featuredTopic.inspirationIdeas.map((idea) => (
-                      <li key={idea}>{idea}</li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p>目前尚無靈感建議。</p>
-                )}
-              </div>
-            </div>
-          </div>
+        <article className="signal-card signal-card--compact">
+          <h3>靈感</h3>
+          {featuredTopic.inspirationIdeas.length > 0 ? (
+            <ul>
+              {featuredTopic.inspirationIdeas.map((idea) => (
+                <li key={idea}>{idea}</li>
+              ))}
+            </ul>
+          ) : (
+            <p>目前尚無靈感建議。</p>
+          )}
         </article>
       </div>
     </section>

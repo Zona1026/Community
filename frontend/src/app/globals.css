@@ -95,6 +95,10 @@ h1 {
   gap: 20px;
 }
 
+.signal-list--three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .dashboard {
   display: grid;
   gap: 24px;
@@ -1450,6 +1454,10 @@ h1 {
 }
 
 @media (max-width: 760px) {
+  .signal-list--three {
+    grid-template-columns: 1fr;
+  }
+
   .signal-card__layout {
     grid-template-columns: 1fr;
   }
