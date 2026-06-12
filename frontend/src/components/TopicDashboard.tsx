@@ -913,10 +913,10 @@ function AiObservationPanel({
   observations: AiObservation[];
 }) {
   return (
-    <section className="dashboard-section" aria-label="AI 重點觀察">
+    <section className="dashboard-section" aria-label="內容靈感總覽">
       <div className="page-section__header">
-        <p className="page-section__eyebrow">AI Notes</p>
-        <h2>AI 重點觀察</h2>
+        <p className="page-section__eyebrow">Content Ideas</p>
+        <h2>內容靈感總覽</h2>
       </div>
       <div className="observation-grid">
         {observations.map((item) => (
@@ -1985,6 +1985,14 @@ export function TopicDashboard({
 
     return topicsData.allTopics.filter((topic) => matchesKeywords(topic, keywords));
   }, [topicsData.allTopics, userSettings.industry]);
+  const featuredIndustryTopics = useMemo(() => {
+    const topics =
+      displayedIndustryTopics.length > 0
+        ? displayedIndustryTopics
+        : topicsData.allTopics;
+
+    return topics.slice(0, 6);
+  }, [displayedIndustryTopics, topicsData.allTopics]);
 
   const displayedUserKeywordTopics = useMemo(
     () =>
@@ -2084,59 +2092,18 @@ export function TopicDashboard({
           </Link>
         </div>
 
-        <DashboardStatusNotice
-          dataSourceLabel={dataSourceLabel}
-          settingsSourceLabel={settingsSourceLabel}
-          favoritesSourceLabel={favoritesSourceLabel}
-        />
-
-        <DashboardSection
-          title="所有熱門話題"
-          eyebrow="All Topics"
-          emptyTitle="尚無熱門話題"
-          emptyDescription="請確認 mockData、JSON sample 或 API 是否已提供資料。"
-          topics={topicsData.allTopics}
-          favoriteTopicIds={favoritesState.topicIds}
-          onOpenTopic={setSelectedTopic}
-          onToggleFavorite={handleToggleFavorite}
-        />
-
-        <TrendOverview
-          overview={overview}
-          favoriteCount={favoritesState.topicIds.length}
-        />
-
-        <TopTopicsRanking
-          topics={topicsData.allTopics}
-          favoriteTopicIds={favoritesState.topicIds}
-          onOpenTopic={setSelectedTopic}
-          onToggleFavorite={handleToggleFavorite}
-        />
-
-        <FavoriteTopicsSection
-          topics={favoriteTopics}
-          favoriteTopicIds={favoritesState.topicIds}
-          onOpenTopic={setSelectedTopic}
-          onToggleFavorite={handleToggleFavorite}
-        />
-
-        <div className="dashboard-insight-layout">
-          <AiObservationPanel observations={observations} />
-          <PlatformDistribution items={platformDistribution} />
-        </div>
-
-        <SourceAnalysisPanel stats={sourceStats} />
-
         <DashboardSection
           title="符合產業熱門話題"
           eyebrow="Industry Match"
           emptyTitle="尚無符合產業的熱門話題"
           emptyDescription="可至設定頁調整產業類別，或確認資料中是否包含相關關鍵字。"
-          topics={displayedIndustryTopics}
+          topics={featuredIndustryTopics}
           favoriteTopicIds={favoritesState.topicIds}
           onOpenTopic={setSelectedTopic}
           onToggleFavorite={handleToggleFavorite}
         />
+
+        <AiObservationPanel observations={observations} />
 
         <DashboardSection
           title="自訂關鍵字熱門話題"
@@ -2144,6 +2111,53 @@ export function TopicDashboard({
           emptyTitle="尚無符合自訂關鍵字的熱門話題"
           emptyDescription="可至設定頁新增關鍵字，或檢查目前展示資料是否包含對應內容。"
           topics={displayedUserKeywordTopics}
+          favoriteTopicIds={favoritesState.topicIds}
+          onOpenTopic={setSelectedTopic}
+          onToggleFavorite={handleToggleFavorite}
+        />
+
+        <div className="dashboard-two-column-layout">
+          <SourceAnalysisPanel stats={sourceStats} />
+          <FavoriteTopicsSection
+            topics={favoriteTopics}
+            favoriteTopicIds={favoritesState.topicIds}
+            onOpenTopic={setSelectedTopic}
+            onToggleFavorite={handleToggleFavorite}
+          />
+        </div>
+
+        <section className="dashboard-section" aria-label="資料展示">
+          <div className="page-section__header">
+            <p className="page-section__eyebrow">Data Display</p>
+            <h2>資料展示</h2>
+          </div>
+
+          <div className="dashboard-data-display">
+            <DashboardStatusNotice
+              dataSourceLabel={dataSourceLabel}
+              settingsSourceLabel={settingsSourceLabel}
+              favoritesSourceLabel={favoritesSourceLabel}
+            />
+            <TrendOverview
+              overview={overview}
+              favoriteCount={favoritesState.topicIds.length}
+            />
+            <TopTopicsRanking
+              topics={topicsData.allTopics}
+              favoriteTopicIds={favoritesState.topicIds}
+              onOpenTopic={setSelectedTopic}
+              onToggleFavorite={handleToggleFavorite}
+            />
+            <PlatformDistribution items={platformDistribution} />
+          </div>
+        </section>
+
+        <DashboardSection
+          title="所有熱門話題"
+          eyebrow="All Topics"
+          emptyTitle="尚無熱門話題"
+          emptyDescription="請確認 mockData、JSON sample 或 API 是否已提供資料。"
+          topics={topicsData.allTopics}
           favoriteTopicIds={favoritesState.topicIds}
           onOpenTopic={setSelectedTopic}
           onToggleFavorite={handleToggleFavorite}
