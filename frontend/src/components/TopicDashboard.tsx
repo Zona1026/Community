@@ -175,18 +175,18 @@ function getLifecycleStageLabel(
   lifecycleStage: TrendSignal['lifecycleStage'],
 ): string {
   if (lifecycleStage === 'growing') {
-    return 'Growing';
+    return '成長中';
   }
 
   if (lifecycleStage === 'mainstream') {
-    return 'Mainstream';
+    return '穩定';
   }
 
   if (lifecycleStage === 'declining') {
-    return 'Declining';
+    return '衰退';
   }
 
-  return 'Emerging';
+  return '新興';
 }
 
 function createAiInput(
@@ -234,34 +234,97 @@ function normalizeSourceText(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
 }
 
-function getTopicSourceBadge(topic: DashboardTopic): string {
-  const sourceCandidates = [
-    topic.source,
-    ...topic.platformTags,
-    ...topic.relatedContent.map((content) => content.source),
-  ]
-    .map(normalizeSourceText)
-    .filter(Boolean);
+type PublicPlatform = 'RSS' | 'Podcast' | 'Threads' | 'Dcard';
 
-  const normalizedCandidates = sourceCandidates.map((source) =>
-    source.toLowerCase(),
-  );
+const PUBLIC_PLATFORM_ORDER: PublicPlatform[] = [
+  'RSS',
+  'Podcast',
+  'Threads',
+  'Dcard',
+];
+
+function normalizeSourceKey(value: unknown): string {
+  return normalizeSourceText(value)
+    .toLowerCase()
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function normalizePlatformForDisplay(value: unknown): PublicPlatform | null {
+  const key = normalizeSourceKey(value);
+
+  if (!key) {
+    return null;
+  }
+
+  if (key === 'rss' || key === 'hacker news' || key === 'hackernews') {
+    return 'RSS';
+  }
 
   if (
-    normalizedCandidates.includes('podcast_smoke_test') ||
-    normalizedCandidates.includes('podcast')
+    key === 'podcast' ||
+    key === 'npr planet money' ||
+    key === 'planet money'
   ) {
     return 'Podcast';
   }
 
-  if (
-    normalizedCandidates.includes('rss_smoke_test') ||
-    normalizedCandidates.includes('rss')
-  ) {
-    return 'RSS';
+  if (key === 'threads') {
+    return 'Threads';
+  }
+
+  if (key === 'dcard') {
+    return 'Dcard';
+  }
+
+  return null;
+}
+
+function isInternalSource(value: unknown): boolean {
+  const key = normalizeSourceKey(value);
+
+  return (
+    key === 'backend' ||
+    key === 'dev smoke' ||
+    key === 'rss smoke test' ||
+    key === 'podcast smoke test' ||
+    key === 'dcard smoke test' ||
+    key.includes('smoke test')
+  );
+}
+
+function getTopicPublicPlatforms(topic: DashboardTopic): PublicPlatform[] {
+  const candidates = [
+    topic.source,
+    ...topic.platformTags,
+    ...topic.relatedContent.map((content) => content.source),
+  ];
+  const platforms = new Set<PublicPlatform>();
+
+  candidates.forEach((candidate) => {
+    const platform = normalizePlatformForDisplay(candidate);
+
+    if (platform) {
+      platforms.add(platform);
+    }
+  });
+
+  return PUBLIC_PLATFORM_ORDER.filter((platform) => platforms.has(platform));
+}
+
+function getTopicSourceBadge(topic: DashboardTopic): string {
+  const publicPlatform = getTopicPublicPlatforms(topic)[0];
+
+  if (publicPlatform) {
+    return publicPlatform;
   }
 
   const primarySource = normalizeSourceText(topic.source);
+
+  if (isInternalSource(primarySource)) {
+    return 'Unknown';
+  }
 
   return primarySource || 'Unknown';
 }
@@ -402,9 +465,7 @@ function normalizeTopicsData(
 
 function createOverview(topics: DashboardTopic[]): DashboardOverview {
   const platforms = new Set(
-    topics.flatMap((topic) =>
-      topic.platformTags.length > 0 ? topic.platformTags : [topic.source],
-    ),
+    topics.flatMap((topic) => getTopicPublicPlatforms(topic)),
   );
 
   return {
@@ -424,8 +485,7 @@ function createPlatformDistribution(
   const counts = new Map<string, number>();
 
   topics.forEach((topic) => {
-    const platforms =
-      topic.platformTags.length > 0 ? topic.platformTags : [topic.source];
+    const platforms = getTopicPublicPlatforms(topic);
 
     platforms.forEach((platform) => {
       counts.set(platform, (counts.get(platform) ?? 0) + topic.contentCount);
@@ -441,12 +501,15 @@ function getTopicPlatformCounts(topic: DashboardTopic): Map<string, number> {
   const counts = new Map<string, number>();
 
   topic.relatedContent.forEach((content) => {
-    counts.set(content.source, (counts.get(content.source) ?? 0) + 1);
+    const platform = normalizePlatformForDisplay(content.source);
+
+    if (platform) {
+      counts.set(platform, (counts.get(platform) ?? 0) + 1);
+    }
   });
 
   if (counts.size === 0) {
-    const platforms =
-      topic.platformTags.length > 0 ? topic.platformTags : [topic.source];
+    const platforms = getTopicPublicPlatforms(topic);
 
     platforms.forEach((platform) => {
       counts.set(platform, 1);
@@ -474,7 +537,7 @@ function createTopicSourceAnalysis(topic: DashboardTopic): TopicSourceAnalysis {
       };
     })
     .sort((left, right) => right.scoreContribution - left.scoreContribution);
-  const primaryPlatform = breakdown[0]?.platform ?? topic.source;
+  const primaryPlatform = breakdown[0]?.platform ?? getTopicSourceBadge(topic);
   const relatedPlatforms = breakdown
     .slice(1)
     .map((item) => item.platform);
@@ -637,25 +700,25 @@ function TopicCard({
 
       <dl className="topic-card__meta">
         <div>
-          <dt>Growth Rate</dt>
+          <dt>成長率</dt>
           <dd>{topic.growthRate}%</dd>
         </div>
         <div>
-          <dt>Momentum</dt>
+          <dt>熱度趨勢</dt>
           <dd>
             <MomentumBadge momentum={topic.momentum} />
           </dd>
         </div>
         <div>
-          <dt>Lifecycle Stage</dt>
+          <dt>生命週期</dt>
           <dd>{getLifecycleStageLabel(topic.lifecycleStage)}</dd>
         </div>
         <div>
-          <dt>Source</dt>
+          <dt>來源</dt>
           <dd>{sourceBadge}</dd>
         </div>
         <div>
-          <dt>Content Count</dt>
+          <dt>內容數</dt>
           <dd>{topic.contentCount}</dd>
         </div>
       </dl>
@@ -1645,25 +1708,25 @@ function TopicDetailModal({
             <dd>{topic.score}</dd>
           </div>
           <div>
-            <dt>Growth Rate</dt>
+            <dt>成長率</dt>
             <dd>{topic.growthRate}%</dd>
           </div>
           <div>
-            <dt>Momentum</dt>
+            <dt>熱度趨勢</dt>
             <dd>
               <MomentumBadge momentum={topic.momentum} />
             </dd>
           </div>
           <div>
-            <dt>Lifecycle Stage</dt>
+            <dt>生命週期</dt>
             <dd>{getLifecycleStageLabel(topic.lifecycleStage)}</dd>
           </div>
           <div>
-            <dt>Source</dt>
+            <dt>來源</dt>
             <dd>{sourceBadge}</dd>
           </div>
           <div>
-            <dt>Content Count</dt>
+            <dt>內容數</dt>
             <dd>{topic.contentCount}</dd>
           </div>
         </dl>
